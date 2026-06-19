@@ -1,0 +1,243 @@
+import pytest
+from stpython.lexer import Token, TokenType
+from stpython.parser import (
+    Parser, evaluate, ASTNode, IntNode, FloatNode, StrNode, BinOpNode
+)
+
+def make_token(ttype: TokenType, value: str | None) -> Token:
+    return Token(line=1, column=1, ttype=ttype, value=value)
+
+def parse_list(tokens_list: list[Token]) -> ASTNode:
+    if not tokens_list or tokens_list[-1].ttype != TokenType.EOF:
+        tokens_list = tokens_list + [make_token(TokenType.EOF, None)]
+    parser = Parser(tokens_list)
+    return parser.expr()
+
+def test_ast_repr():
+    """Verify the string representation of AST nodes."""
+    tok_int = make_token(TokenType.INTEGER, "42")
+    node_int = IntNode(tok_int)
+    assert repr(node_int) == f"IntNode({tok_int})"
+
+    tok_float = make_token(TokenType.FLOAT, "3.14")
+    node_float = FloatNode(tok_float)
+    assert repr(node_float) == f"FloatNode({tok_float})"
+
+    tok_str = make_token(TokenType.STRING, "hello")
+    node_str = StrNode(tok_str)
+    assert repr(node_str) == f"StrNode({tok_str})"
+
+    tok_plus = make_token(TokenType.PLUS, "+")
+    node_bin = BinOpNode(tok_plus)
+    node_bin.left = node_int
+    node_bin.right = node_float
+    assert repr(node_bin) == f"BinOpNode(l: IntNode({tok_int}) TokenType.PLUS, r: FloatNode({tok_float}))"
+
+def test_parse_single_literal_int():
+    tokens = [make_token(TokenType.INTEGER, "10")]
+    ast = parse_list(tokens)
+    assert isinstance(ast, IntNode)
+    assert ast.token.value == "10"
+    assert evaluate(ast) == 10
+
+def test_parse_single_literal_float():
+    tokens = [make_token(TokenType.FLOAT, "12.34")]
+    ast = parse_list(tokens)
+    assert isinstance(ast, FloatNode)
+    assert ast.token.value == "12.34"
+    assert evaluate(ast) == 12.34
+
+def test_parse_single_literal_str():
+    tokens = [make_token(TokenType.STRING, "test_string")]
+    ast = parse_list(tokens)
+    assert isinstance(ast, StrNode)
+    assert ast.token.value == "test_string"
+    assert evaluate(ast) == "test_string"
+
+def test_parse_basic_addition():
+    tokens = [
+        make_token(TokenType.INTEGER, "5"),
+        make_token(TokenType.PLUS, "+"),
+        make_token(TokenType.INTEGER, "3"),
+    ]
+    ast = parse_list(tokens)
+    assert isinstance(ast, BinOpNode)
+    assert ast.op == TokenType.PLUS
+    assert isinstance(ast.left, IntNode)
+    assert ast.left.token.value == "5"
+    assert isinstance(ast.right, IntNode)
+    assert ast.right.token.value == "3"
+    assert evaluate(ast) == 8
+
+def test_parse_basic_subtraction():
+    tokens = [
+        make_token(TokenType.INTEGER, "10"),
+        make_token(TokenType.MINUS, "-"),
+        make_token(TokenType.INTEGER, "4"),
+    ]
+    ast = parse_list(tokens)
+    assert isinstance(ast, BinOpNode)
+    assert ast.op == TokenType.MINUS
+    assert evaluate(ast) == 6
+
+def test_parse_basic_multiplication():
+    tokens = [
+        make_token(TokenType.INTEGER, "7"),
+        make_token(TokenType.MULTIPLY, "*"),
+        make_token(TokenType.INTEGER, "6"),
+    ]
+    ast = parse_list(tokens)
+    assert isinstance(ast, BinOpNode)
+    assert ast.op == TokenType.MULTIPLY
+    assert evaluate(ast) == 42
+
+def test_parse_basic_float_division():
+    tokens = [
+        make_token(TokenType.INTEGER, "7"),
+        make_token(TokenType.FLOAT_DIVIDE, "/"),
+        make_token(TokenType.INTEGER, "2"),
+    ]
+    ast = parse_list(tokens)
+    assert isinstance(ast, BinOpNode)
+    assert ast.op == TokenType.FLOAT_DIVIDE
+    assert evaluate(ast) == 3.5
+
+def test_parse_basic_int_division():
+    tokens = [
+        make_token(TokenType.INTEGER, "7"),
+        make_token(TokenType.INT_DIVIDE, "//"),
+        make_token(TokenType.INTEGER, "2"),
+    ]
+    ast = parse_list(tokens)
+    assert isinstance(ast, BinOpNode)
+    assert ast.op == TokenType.INT_DIVIDE
+    assert evaluate(ast) == 3
+
+def test_precedence_mul_before_add():
+    # 2 + 3 * 4
+    tokens = [
+        make_token(TokenType.INTEGER, "2"),
+        make_token(TokenType.PLUS, "+"),
+        make_token(TokenType.INTEGER, "3"),
+        make_token(TokenType.MULTIPLY, "*"),
+        make_token(TokenType.INTEGER, "4"),
+    ]
+    ast = parse_list(tokens)
+    assert isinstance(ast, BinOpNode)
+    assert ast.op == TokenType.PLUS
+    assert isinstance(ast.left, IntNode)
+    assert ast.left.token.value == "2"
+    assert isinstance(ast.right, BinOpNode)
+    assert ast.right.op == TokenType.MULTIPLY
+    assert evaluate(ast) == 14
+
+def test_precedence_add_after_mul():
+    # 2 * 3 + 4
+    tokens = [
+        make_token(TokenType.INTEGER, "2"),
+        make_token(TokenType.MULTIPLY, "*"),
+        make_token(TokenType.INTEGER, "3"),
+        make_token(TokenType.PLUS, "+"),
+        make_token(TokenType.INTEGER, "4"),
+    ]
+    ast = parse_list(tokens)
+    assert isinstance(ast, BinOpNode)
+    assert ast.op == TokenType.PLUS
+    assert isinstance(ast.left, BinOpNode)
+    assert ast.left.op == TokenType.MULTIPLY
+    assert isinstance(ast.right, IntNode)
+    assert ast.right.token.value == "4"
+    assert evaluate(ast) == 10
+
+def test_associativity_chained_addition():
+    # 1 + 2 + 3
+    # Left-associative: should parse as (1 + 2) + 3
+    tokens = [
+        make_token(TokenType.INTEGER, "1"),
+        make_token(TokenType.PLUS, "+"),
+        make_token(TokenType.INTEGER, "2"),
+        make_token(TokenType.PLUS, "+"),
+        make_token(TokenType.INTEGER, "3"),
+    ]
+    ast = parse_list(tokens)
+    assert isinstance(ast, BinOpNode)
+    assert ast.op == TokenType.PLUS
+    assert isinstance(ast.left, BinOpNode)
+    assert ast.left.op == TokenType.PLUS
+    assert isinstance(ast.right, IntNode)
+    assert ast.right.token.value == "3"
+    assert evaluate(ast) == 6
+
+def test_associativity_chained_subtraction():
+    # 10 - 4 - 2
+    # Left-associative: should parse as (10 - 4) - 2
+    tokens = [
+        make_token(TokenType.INTEGER, "10"),
+        make_token(TokenType.MINUS, "-"),
+        make_token(TokenType.INTEGER, "4"),
+        make_token(TokenType.MINUS, "-"),
+        make_token(TokenType.INTEGER, "2"),
+    ]
+    ast = parse_list(tokens)
+    assert isinstance(ast, BinOpNode)
+    assert ast.op == TokenType.MINUS
+    assert isinstance(ast.left, BinOpNode)
+    assert ast.left.op == TokenType.MINUS
+    assert isinstance(ast.right, IntNode)
+    assert ast.right.token.value == "2"
+    assert evaluate(ast) == 4
+
+def test_parentheses():
+    # (1 + 2) * 3
+    tokens = [
+        make_token(TokenType.LEFT_PAREN, "("),
+        make_token(TokenType.INTEGER, "1"),
+        make_token(TokenType.PLUS, "+"),
+        make_token(TokenType.INTEGER, "2"),
+        make_token(TokenType.RIGHT_PAREN, ")"),
+        make_token(TokenType.MULTIPLY, "*"),
+        make_token(TokenType.INTEGER, "3"),
+    ]
+    ast = parse_list(tokens)
+    assert isinstance(ast, BinOpNode)
+    assert ast.op == TokenType.MULTIPLY
+    assert isinstance(ast.left, BinOpNode)
+    assert ast.left.op == TokenType.PLUS
+    assert isinstance(ast.right, IntNode)
+    assert evaluate(ast) == 9
+
+def test_unexpected_token_error():
+    # E.g. "+ 1" where an expression expects a term, but starts with "+"
+    tokens = [
+        make_token(TokenType.PLUS, "+"),
+        make_token(TokenType.INTEGER, "1")
+    ]
+    with pytest.raises(ValueError) as exc_info:
+        parse_list(tokens)
+    assert "Unexpected token" in str(exc_info.value)
+
+def test_lexer_parser_integration():
+    """Verify integration between Lexer and Parser for basic expressions."""
+    from stpython.lexer import parse as lex_parse
+    
+    # "1 + 2"
+    tokens = lex_parse("1 + 2")
+    ast = parse_list(tokens)
+    assert evaluate(ast) == 3
+
+    # "(5 - 2) * 3"
+    tokens = lex_parse("(5 - 2) * 3")
+    ast = parse_list(tokens)
+    assert evaluate(ast) == 9
+
+def test_unmatched_parentheses():
+    # (1 + 2
+    tokens = [
+        make_token(TokenType.LEFT_PAREN, "("),
+        make_token(TokenType.INTEGER, "1"),
+        make_token(TokenType.PLUS, "+"),
+        make_token(TokenType.INTEGER, "2"),
+    ]
+    with pytest.raises(ValueError) as exc_info:
+        parse_list(tokens)
+    assert "Expected ')'" in str(exc_info.value)
