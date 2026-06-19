@@ -3,7 +3,7 @@ from typing import List, Any
 from dataclasses import dataclass
 
 class TokenType(Enum):
-    ASIGN = auto()
+    ASSIGN = auto()
     EQUAL = auto()
     NAME = auto()
     INTEGER = auto()
@@ -14,6 +14,8 @@ class TokenType(Enum):
     MULTIPLY = auto()
     INT_DIVIDE = auto()
     FLOAT_DIVIDE = auto()
+    LEFT_PAREN = auto()
+    RIGHT_PAREN = auto()
     EOF = auto()
 
 @dataclass
@@ -72,6 +74,22 @@ class Lexer:
             token = Token(self.line, self.column, TokenType.PLUS, char)
             self.advance()
             return token
+        elif char == '-':
+            token = Token(self.line, self.column, TokenType.MINUS, char)
+            self.advance()
+            return token
+        elif char == '(':
+            token = Token(self.line, self.column, TokenType.LEFT_PAREN, char)
+            self.advance()
+            return token
+        elif char == ')':
+            token = Token(self.line, self.column, TokenType.RIGHT_PAREN, char)
+            self.advance()
+            return token
+        elif char == '*':
+            token = Token(self.line, self.column, TokenType.MULTIPLY, char)
+            self.advance()
+            return token
         elif char in '1234567890':
             start_line = self.line
             start_column = self.column
@@ -87,7 +105,12 @@ class Lexer:
             self.advance()
             return token
         elif char == '=':
-            token = Token(self.line, self.column, TokenType.EQUAL, char)
+            if self.peek() == '=':
+                token = Token(self.line, self.column, TokenType.EQUAL, "==")
+                #advance for second =
+                self.advance()
+            else:
+                token = Token(self.line, self.column, TokenType.ASSIGN, char)
             self.advance()
             return token
         else:

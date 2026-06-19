@@ -21,10 +21,35 @@ def test_single_tokens():
     assert len(tokens) == 1
     assert tokens[0] == Token(line=1, column=1, ttype=TokenType.PLUS, value="+")
 
-    # Equal token
+    # Minus token
+    tokens = collect_tokens("-")
+    assert len(tokens) == 1
+    assert tokens[0] == Token(line=1, column=1, ttype=TokenType.MINUS, value="-")
+
+    # Multiply token
+    tokens = collect_tokens("*")
+    assert len(tokens) == 1
+    assert tokens[0] == Token(line=1, column=1, ttype=TokenType.MULTIPLY, value="*")
+
+    # Left paren token
+    tokens = collect_tokens("(")
+    assert len(tokens) == 1
+    assert tokens[0] == Token(line=1, column=1, ttype=TokenType.LEFT_PAREN, value="(")
+
+    # Right paren token
+    tokens = collect_tokens(")")
+    assert len(tokens) == 1
+    assert tokens[0] == Token(line=1, column=1, ttype=TokenType.RIGHT_PAREN, value=")")
+
+    # Assign token
     tokens = collect_tokens("=")
     assert len(tokens) == 1
-    assert tokens[0] == Token(line=1, column=1, ttype=TokenType.EQUAL, value="=")
+    assert tokens[0] == Token(line=1, column=1, ttype=TokenType.ASSIGN, value="=")
+
+    # Equal token
+    tokens = collect_tokens("==")
+    assert len(tokens) == 1
+    assert tokens[0] == Token(line=1, column=1, ttype=TokenType.EQUAL, value="==")
 
     # Single digit integer token
     tokens = collect_tokens("5")
@@ -50,7 +75,7 @@ def test_token_sequence():
     tokens = collect_tokens("1=9")
     assert tokens == [
         Token(line=1, column=1, ttype=TokenType.INTEGER, value="1"),
-        Token(line=1, column=2, ttype=TokenType.EQUAL, value="="),
+        Token(line=1, column=2, ttype=TokenType.ASSIGN, value="="),
         Token(line=1, column=3, ttype=TokenType.INTEGER, value="9"),
     ]
 
@@ -81,14 +106,14 @@ def test_newline_handling():
     tokens = collect_tokens("1\n\n\n=")
     assert tokens == [
         Token(line=1, column=1, ttype=TokenType.INTEGER, value="1"),
-        Token(line=4, column=1, ttype=TokenType.EQUAL, value="="),
+        Token(line=4, column=1, ttype=TokenType.ASSIGN, value="="),
     ]
 
 def test_unknown_character_assertion():
     """Verify that unknown characters raise an AssertionError."""
     with pytest.raises(AssertionError) as exc_info:
-        collect_tokens("1-2")
-    assert "Unknown token -" in str(exc_info.value)
+        collect_tokens("1%2")
+    assert "Unknown token %" in str(exc_info.value)
 
     with pytest.raises(AssertionError) as exc_info:
         collect_tokens("x")
@@ -109,5 +134,21 @@ def test_multi_digit_integer():
         Token(line=1, column=1, ttype=TokenType.INTEGER, value="123"),
         Token(line=1, column=4, ttype=TokenType.PLUS, value="+"),
         Token(line=1, column=5, ttype=TokenType.INTEGER, value="45"),
+    ]
+
+
+def test_expression_with_new_tokens():
+    """Verify tokenization of an expression containing parenthesis, multiplication, subtraction, and addition."""
+    tokens = collect_tokens("(12 + 3) * 4 - 5")
+    assert tokens == [
+        Token(line=1, column=1, ttype=TokenType.LEFT_PAREN, value="("),
+        Token(line=1, column=2, ttype=TokenType.INTEGER, value="12"),
+        Token(line=1, column=5, ttype=TokenType.PLUS, value="+"),
+        Token(line=1, column=7, ttype=TokenType.INTEGER, value="3"),
+        Token(line=1, column=8, ttype=TokenType.RIGHT_PAREN, value=")"),
+        Token(line=1, column=10, ttype=TokenType.MULTIPLY, value="*"),
+        Token(line=1, column=12, ttype=TokenType.INTEGER, value="4"),
+        Token(line=1, column=14, ttype=TokenType.MINUS, value="-"),
+        Token(line=1, column=16, ttype=TokenType.INTEGER, value="5"),
     ]
 
