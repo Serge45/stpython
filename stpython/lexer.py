@@ -1,0 +1,105 @@
+from enum import Enum, auto
+from typing import List, Any
+from dataclasses import dataclass
+
+class TokenType(Enum):
+    ASIGN = auto()
+    EQUAL = auto()
+    NAME = auto()
+    INTEGER = auto()
+    FLOAT = auto()
+    STRING = auto()
+    PLUS = auto()
+    MINUS = auto()
+    MULTIPLY = auto()
+    INT_DIVIDE = auto()
+    FLOAT_DIVIDE = auto()
+    EOF = auto()
+
+@dataclass
+class Token:
+    line: int
+    column: int
+    ttype: TokenType
+    value: Any
+
+class Lexer:
+    def __init__(self, source: str) -> None:
+        self.source = source
+        self.tokens: List[Token] = []
+        self.line: int = 1
+        self.column: int = 1
+        self.cursor: int = 0
+
+    def advance(self, newline=False) -> str | None:
+        if self.cursor >= len(self.source):
+            return None
+            
+        self.cursor += 1
+
+        if newline:
+            self.line += 1
+            self.column = 1
+        else:
+            self.column += 1
+
+        if self.cursor >= len(self.source):
+            return None
+            
+        return self.source[self.cursor]
+
+    def peek(self) -> str | None:
+        if self.cursor + 1 >= len(self.source):
+            return None
+        return self.source[self.cursor + 1]
+
+    def get_next_token(self) -> Token | None:
+        while self.cursor < len(self.source):
+            char = self.source[self.cursor]
+            if char in ' \t':
+                self.advance()
+            elif char == '\n':
+                self.advance(newline=True)
+            else:
+                break
+
+        if self.cursor >= len(self.source):
+            return Token(self.line, self.column, TokenType.EOF, None)
+
+        char = self.source[self.cursor]
+        
+        if char == '+':
+            token = Token(self.line, self.column, TokenType.PLUS, char)
+            self.advance()
+            return token
+        elif char in '1234567890':
+            start_line = self.line
+            start_column = self.column
+            chars = [char]
+            while next_char := self.peek():
+                if next_char in '1234567890':
+                    self.advance()
+                    chars.append(next_char)
+                else:
+                    break
+
+            token = Token(start_line, start_column, TokenType.INTEGER, "".join(chars))
+            self.advance()
+            return token
+        elif char == '=':
+            token = Token(self.line, self.column, TokenType.EQUAL, char)
+            self.advance()
+            return token
+        else:
+            assert False, f"Unknown token {char} at {self.line}:{self.column}"
+
+def parse(code: str) -> List[Token]:
+    lexer = Lexer(code)
+    tokens = []
+    while (tok := lexer.get_next_token()).ttype != TokenType.EOF:
+        tokens.append(tok)
+    return tokens
+    
+if __name__ == '__main__':
+    print(parse("1+2"))
+    print(parse("123+456"))
