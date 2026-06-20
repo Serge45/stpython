@@ -110,6 +110,19 @@ class Lexer:
             token = Token(start_line, start_column, TokenType.INTEGER, "".join(chars))
             self.advance()
             return token
+        elif char.isalpha() or char == '_':
+            start_line = self.line
+            start_column = self.column
+            chars = [char]
+            while next_char := self.peek():
+                if next_char.isalnum() or next_char == '_':
+                    self.advance()
+                    chars.append(next_char)
+                else:
+                    break
+            token = Token(start_line, start_column, TokenType.NAME, "".join(chars))
+            self.advance()
+            return token
         elif char == '=':
             if self.peek() == '=':
                 token = Token(self.line, self.column, TokenType.EQUAL, "==")
@@ -132,3 +145,5 @@ def parse(code: str) -> List[Token]:
 if __name__ == '__main__':
     print(parse("1+2"))
     print(parse("123+456"))
+    print(parse("abc = 1"))
+    

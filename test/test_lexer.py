@@ -116,8 +116,8 @@ def test_unknown_character_assertion():
     assert "Unknown token %" in str(exc_info.value)
 
     with pytest.raises(AssertionError) as exc_info:
-        collect_tokens("x")
-    assert "Unknown token x" in str(exc_info.value)
+        collect_tokens("@")
+    assert "Unknown token @" in str(exc_info.value)
 
 def test_trailing_whitespace():
     """Verify that trailing whitespace is handled correctly and does not cause an error."""
@@ -170,4 +170,39 @@ def test_leading_zeros_error():
     with pytest.raises(TokenError) as exc_info:
         collect_tokens("1 + 02")
     assert "Leading zeros in decimal integer literals are not permitted: 02" in str(exc_info.value)
+
+
+def test_name_tokens_basic():
+    """Verify basic name tokenization (letters, starting underscores, alphanumeric combinations)."""
+    # Single character names
+    tokens = collect_tokens("a")
+    assert tokens == [Token(line=1, column=1, ttype=TokenType.NAME, value="a")]
+
+    tokens = collect_tokens("_")
+    assert tokens == [Token(line=1, column=1, ttype=TokenType.NAME, value="_")]
+
+    # Multi-character names
+    tokens = collect_tokens("var1")
+    assert tokens == [Token(line=1, column=1, ttype=TokenType.NAME, value="var1")]
+
+    tokens = collect_tokens("_abc123")
+    assert tokens == [Token(line=1, column=1, ttype=TokenType.NAME, value="_abc123")]
+
+    # Names in expressions
+    tokens = collect_tokens("x + y")
+    assert tokens == [
+        Token(line=1, column=1, ttype=TokenType.NAME, value="x"),
+        Token(line=1, column=3, ttype=TokenType.PLUS, value="+"),
+        Token(line=1, column=5, ttype=TokenType.NAME, value="y"),
+    ]
+
+
+def test_name_tokens_with_underscores():
+    """Verify name tokenization of names containing underscores in the middle or end.
+
+    NOTE: This test is expected to fail on the current implementation of Lexer.
+    """
+    tokens = collect_tokens("foo_bar")
+    assert tokens == [Token(line=1, column=1, ttype=TokenType.NAME, value="foo_bar")]
+
 
