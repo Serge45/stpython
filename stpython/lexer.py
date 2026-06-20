@@ -2,6 +2,9 @@ from enum import Enum, auto
 from typing import List, Any
 from dataclasses import dataclass
 
+class TokenError(Exception):
+    pass
+
 class TokenType(Enum):
     ASSIGN = auto()
     EQUAL = auto()
@@ -100,6 +103,9 @@ class Lexer:
                     chars.append(next_char)
                 else:
                     break
+
+            if len(chars) > 1 and chars[0] == '0':
+                raise TokenError(f"Leading zeros in decimal integer literals are not permitted: {''.join(chars)}")
 
             token = Token(start_line, start_column, TokenType.INTEGER, "".join(chars))
             self.advance()

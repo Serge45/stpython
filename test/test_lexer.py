@@ -1,5 +1,5 @@
 import pytest
-from stpython.lexer import Lexer, Token, TokenType
+from stpython.lexer import Lexer, Token, TokenType, TokenError
 
 def collect_tokens(code: str) -> list[Token]:
     """Helper to collect all tokens from a Lexer instance."""
@@ -151,4 +151,23 @@ def test_expression_with_new_tokens():
         Token(line=1, column=14, ttype=TokenType.MINUS, value="-"),
         Token(line=1, column=16, ttype=TokenType.INTEGER, value="5"),
     ]
+
+
+def test_leading_zeros_error():
+    """Verify that integer literals with leading zeros raise a TokenError."""
+    with pytest.raises(TokenError) as exc_info:
+        collect_tokens("01")
+    assert "Leading zeros in decimal integer literals are not permitted: 01" in str(exc_info.value)
+
+    with pytest.raises(TokenError) as exc_info:
+        collect_tokens("00")
+    assert "Leading zeros in decimal integer literals are not permitted: 00" in str(exc_info.value)
+
+    with pytest.raises(TokenError) as exc_info:
+        collect_tokens("0123")
+    assert "Leading zeros in decimal integer literals are not permitted: 0123" in str(exc_info.value)
+
+    with pytest.raises(TokenError) as exc_info:
+        collect_tokens("1 + 02")
+    assert "Leading zeros in decimal integer literals are not permitted: 02" in str(exc_info.value)
 
