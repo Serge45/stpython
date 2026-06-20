@@ -1,8 +1,9 @@
 import pytest
 from stpython.lexer import Token, TokenType
 from stpython.parser import (
-    Parser, evaluate, ASTNode, IntNode, FloatNode, StrNode, BinOpNode
+    Parser, evaluate, ASTNode, IntNode, FloatNode, StrNode, BinOpNode, UnaryOpNode
 )
+
 
 def make_token(ttype: TokenType, value: str | None) -> Token:
     return Token(line=1, column=1, ttype=ttype, value=value)
@@ -32,6 +33,13 @@ def test_ast_repr():
     node_bin.left = node_int
     node_bin.right = node_float
     assert repr(node_bin) == f"BinOpNode(l: IntNode({tok_int}) TokenType.PLUS, r: FloatNode({tok_float}))"
+
+    tok_minus = make_token(TokenType.MINUS, "-")
+    node_unary = UnaryOpNode(tok_minus)
+    node_unary.val = tok_minus.value
+    node_unary.expr = node_int
+    assert repr(node_unary) == f"UnaryOpNode(op: TokenType.MINUS -)"
+
 
 def test_parse_single_literal_int():
     tokens = [make_token(TokenType.INTEGER, "10")]
@@ -207,9 +215,9 @@ def test_parentheses():
     assert evaluate(ast) == 9
 
 def test_unexpected_token_error():
-    # E.g. "+ 1" where an expression expects a term, but starts with "+"
+    # E.g. "* 1" where an expression expects a term, but starts with "*"
     tokens = [
-        make_token(TokenType.PLUS, "+"),
+        make_token(TokenType.MULTIPLY, "*"),
         make_token(TokenType.INTEGER, "1")
     ]
     with pytest.raises(ValueError) as exc_info:
@@ -241,3 +249,63 @@ def test_unmatched_parentheses():
     with pytest.raises(ValueError) as exc_info:
         parse_list(tokens)
     assert "Expected ')'" in str(exc_info.value)
+
+def test_unary_operators():
+    # Test unary plus: +5
+    tokens = [
+        make_token(TokenType.PLUS, "+"),
+        make_token(TokenType.INTEGER, "5")
+    ]
+    ast = parse_list(tokens)
+    assert isinstance(ast, UnaryOpNode)
+    assert ast.op == TokenType.PLUS
+    assert isinstance(ast.expr, IntNode)
+    assert ast.expr.token.value == "5"
+    assert evaluate(ast) == 5
+
+    # Test unary minus: -3.14
+    tokens = [
+        make_token(TokenType.MINUS, "-"),
+        make_token(TokenType.FLOAT, "3.14")
+    ]
+    ast = parse_list(tokens)
+    assert isinstance(ast, UnaryOpNode)
+    assert ast.op == TokenType.MINUS
+    assert isinstance(ast.expr, FloatNode)
+    assert ast.expr.token.value == "3.14"
+    assert evaluate(ast) == -3.14
+
+    # Test nested unary minus: --2
+    tokens = [
+        make_token(TokenType.MINUS, "-"),
+        make_token(TokenType.MINUS, "-"),
+        make_token(TokenType.INTEGER, "2")
+    ]
+    ast = parse_list(tokens)
+    assert isinstance(ast, UnaryOpNode)
+    assert ast.op == TokenType.MINUS
+    assert isinstance(ast.expr, UnaryOpNode)
+    assert ast.expr.op == TokenType.MINUS
+    assert isinstance(ast.expr.expr, IntNode)
+    assert evaluate(ast) == 2
+
+    # Test unary minus with parentheses: -(5 + 3)
+    tokens = [
+        make_token(TokenType.MINUS, "-"),
+        make_token(TokenType.LEFT_PAREN, "("),
+        make_token(TokenType.INTEGER, "5"),
+        make_token(TokenType.PLUS, "+"),
+        make_token(TokenType.INTEGER, "3"),
+        make_token(TokenType.RIGHT_PAREN, ")")
+    ]
+    ast = parse_list(tokens)
+    assert isinstance(ast, UnaryOpNode)
+    assert ast.op == TokenType.MINUS
+    assert isinstance(ast.expr, BinOpNode)
+    assert evaluate(ast) == -8
+
+    # Integration test with lexer for complex unary operator usage
+    from stpython.lexer import parse as lex_parse
+    tokens = lex_parse("- (5 + -3)")
+    ast = parse_list(tokens)
+    assert evaluate(ast) == -2

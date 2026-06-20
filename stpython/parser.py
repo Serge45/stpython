@@ -27,6 +27,15 @@ class BinOpNode(ASTNode):
     def __repr__(self):
         return f"BinOpNode(l: {self.left} {self.op}, r: {self.right})"
 
+class UnaryOpNode(ASTNode):
+    def __init__(self, token: Token):
+        super().__init__(token)
+        self.op = token.ttype
+        self.val = token.value
+
+    def __repr__(self):
+        return f"UnaryOpNode(op: {self.op} {self.val})"
+
 class Parser:
     def __init__(self, tokens: List[Token]):
         self.tokens = tokens
@@ -95,6 +104,11 @@ class Parser:
                 raise ValueError("Expected ')'")
             self.advance()
             return node
+        elif self.cur_token.ttype in (TokenType.PLUS, TokenType.MINUS):
+            node = UnaryOpNode(self.cur_token)
+            self.advance()
+            node.expr = self.factor()
+            return node
         else:
             raise ValueError(f'Unexpected token {self.cur_token}')
 
@@ -118,6 +132,11 @@ def evaluate(node: ASTNode) -> int | float | str:
             return left_val // right_val
         elif node.op == TokenType.FLOAT_DIVIDE:
             return left_val / right_val
+    elif isinstance(node, UnaryOpNode):
+        if node.op == TokenType.PLUS:
+            return evaluate(node.expr)
+        elif node.op == TokenType.MINUS:
+            return -evaluate(node.expr)
 
 if __name__ == '__main__':
     tokens = [
