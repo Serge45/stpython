@@ -27,6 +27,20 @@ class BinOpNode(ASTNode):
     def __repr__(self):
         return f"BinOpNode(l: {self.left} {self.op}, r: {self.right})"
 
+class AssignOpNode(ASTNode):
+    def __init__(self, token: Token):
+        super().__init__(token)
+        self.op = token.ttype
+        self.left = None
+        self.right = None
+
+    def __repr__(self):
+        return f"AssignOpNode(l: {self.left} {self.op}, r: {self.right})"
+
+class VarNode(ASTNode):
+    def __repr__(self):
+        return f"VarNode({self.token.value})"
+
 class UnaryOpNode(ASTNode):
     def __init__(self, token: Token):
         super().__init__(token)
@@ -53,6 +67,17 @@ class Parser:
         self.cursor += 1
         self.cur_token = self.tokens[self.cursor] if self.cursor < len(self.tokens) else None
         return self.cur_token
+
+    def stmt(self) -> ASTNode:
+        # for x = 1 pattern
+        if self.cur_token.ttype == TokenType.NAME and self.peek() is not None and self.peek().ttype == TokenType.ASSIGN:
+            self.advance()
+            self.advance()
+            node = AssignOpNode(self.tokens[self.cursor - 1])
+            node.left = VarNode(self.tokens[self.cursor - 2])
+            node.right = self.expr()
+            return node
+        return self.expr()
 
     def expr(self) -> ASTNode:
         """
@@ -109,10 +134,26 @@ class Parser:
             self.advance()
             node.expr = self.factor()
             return node
+        elif self.cur_token.ttype == TokenType.NAME:
+            node = VarNode(self.cur_token)
+            self.advance()
+            return node
         else:
             raise ValueError(f'Unexpected token {self.cur_token}')
 
-def evaluate(node: ASTNode) -> int | float | str:
+class Environment:
+    def __init__(self):
+        self.values = {}
+
+    def __getitem__(self, key: str) -> int | float | str:
+        if key not in self.values:
+            raise NameError(f'name {key} is not defined')
+        return self.values[key]
+
+    def __setitem__(self, key: str, value: int | float | str) -> None:
+        self.values[key] = value
+
+def evaluate(node: ASTNode, env: Environment = None) -> int | float | str:
     if isinstance(node, IntNode):
         return int(node.token.value)
     elif isinstance(node, FloatNode):
@@ -120,8 +161,8 @@ def evaluate(node: ASTNode) -> int | float | str:
     elif isinstance(node, StrNode):
         return node.token.value
     elif isinstance(node, BinOpNode):
-        left_val = evaluate(node.left)
-        right_val = evaluate(node.right)
+        left_val = evaluate(node.left, env)
+        right_val = evaluate(node.right, env)
         if node.op == TokenType.PLUS:
             return left_val + right_val
         elif node.op == TokenType.MINUS:
@@ -134,9 +175,20 @@ def evaluate(node: ASTNode) -> int | float | str:
             return left_val / right_val
     elif isinstance(node, UnaryOpNode):
         if node.op == TokenType.PLUS:
-            return evaluate(node.expr)
+            return evaluate(node.expr, env)
         elif node.op == TokenType.MINUS:
-            return -evaluate(node.expr)
+            return -evaluate(node.expr, env)
+    elif isinstance(node, AssignOpNode):
+        if env is None:
+            return evaluate(node.right, env)
+        env[node.left.token.value] = evaluate(node.right, env)
+        return env[node.left.token.value]
+    elif isinstance(node, VarNode):
+        if env is None:
+            return node.token.value
+        return env[node.token.value]
+    else:
+        raise ValueError(f'Unexpected node {node}')
 
 if __name__ == '__main__':
     tokens = [
@@ -147,5 +199,5 @@ if __name__ == '__main__':
     ]
 
     parser = Parser(tokens)
-    ast = parser.expr()
+    ast = parser.stmt()
     print(ast, ",", evaluate(ast))

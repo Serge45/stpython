@@ -1,7 +1,7 @@
 import pytest
 from stpython.lexer import Token, TokenType
 from stpython.parser import (
-    Parser, evaluate, ASTNode, IntNode, FloatNode, StrNode, BinOpNode, UnaryOpNode
+    Parser, evaluate, ASTNode, IntNode, FloatNode, StrNode, BinOpNode, UnaryOpNode, AssignOpNode, VarNode, Environment
 )
 
 
@@ -309,3 +309,174 @@ def test_unary_operators():
     tokens = lex_parse("- (5 + -3)")
     ast = parse_list(tokens)
     assert evaluate(ast) == -2
+
+
+def parse_stmt_list(tokens_list: list[Token]) -> ASTNode:
+    if not tokens_list or tokens_list[-1].ttype != TokenType.EOF:
+        tokens_list = tokens_list + [make_token(TokenType.EOF, None)]
+    parser = Parser(tokens_list)
+    return parser.stmt()
+
+
+def test_parse_assignment_basic():
+    """Verify parsing of a basic assignment like x = 42."""
+    tokens = [
+        make_token(TokenType.NAME, "x"),
+        make_token(TokenType.ASSIGN, "="),
+        make_token(TokenType.INTEGER, "42"),
+    ]
+    ast = parse_stmt_list(tokens)
+    
+    assert isinstance(ast, AssignOpNode)
+    assert ast.op == TokenType.ASSIGN
+    assert isinstance(ast.left, VarNode)
+    assert ast.left.token.value == "x"
+    assert isinstance(ast.right, IntNode)
+    assert ast.right.token.value == "42"
+
+
+def test_parse_assignment_complex_rhs():
+    """Verify parsing of an assignment with a complex expression on the RHS."""
+    tokens = [
+        make_token(TokenType.NAME, "y"),
+        make_token(TokenType.ASSIGN, "="),
+        make_token(TokenType.INTEGER, "2"),
+        make_token(TokenType.PLUS, "+"),
+        make_token(TokenType.INTEGER, "3"),
+        make_token(TokenType.MULTIPLY, "*"),
+        make_token(TokenType.INTEGER, "4"),
+    ]
+    ast = parse_stmt_list(tokens)
+    
+    assert isinstance(ast, AssignOpNode)
+    assert ast.op == TokenType.ASSIGN
+    assert isinstance(ast.left, VarNode)
+    assert ast.left.token.value == "y"
+    
+    # RHS should be 2 + 3 * 4
+    assert isinstance(ast.right, BinOpNode)
+    assert ast.right.op == TokenType.PLUS
+    assert evaluate(ast.right) == 14
+
+
+def test_lexer_parser_assignment_integration():
+    """Verify integration between Lexer and Parser for assignment statements."""
+    from stpython.lexer import parse as lex_parse
+    
+    tokens = lex_parse("result = 12 + 5")
+    ast = parse_stmt_list(tokens)
+    
+    assert isinstance(ast, AssignOpNode)
+    assert ast.op == TokenType.ASSIGN
+    assert isinstance(ast.left, VarNode)
+    assert ast.left.token.value == "result"
+    
+    assert isinstance(ast.right, BinOpNode)
+    assert ast.right.op == TokenType.PLUS
+    assert evaluate(ast.right) == 17
+
+
+def test_parse_name_in_expression():
+    """Verify parsing a variable name inside an expression succeeds with VarNode."""
+    from stpython.lexer import parse as lex_parse
+    tokens = lex_parse("x + 1")
+    ast = parse_stmt_list(tokens)
+    
+    assert isinstance(ast, BinOpNode)
+    assert ast.op == TokenType.PLUS
+    assert isinstance(ast.left, VarNode)
+    assert ast.left.token.value == "x"
+    assert isinstance(ast.right, IntNode)
+    assert ast.right.token.value == "1"
+
+
+def test_parse_assignment_rhs_name():
+    """Verify that using a name on the RHS of assignment succeeds with VarNode."""
+    from stpython.lexer import parse as lex_parse
+    tokens = lex_parse("y = x")
+    ast = parse_stmt_list(tokens)
+    
+    assert isinstance(ast, AssignOpNode)
+    assert ast.op == TokenType.ASSIGN
+    assert isinstance(ast.left, VarNode)
+    assert ast.left.token.value == "y"
+    
+    assert isinstance(ast.right, VarNode)
+    assert ast.right.token.value == "x"
+    assert evaluate(ast) == "x"
+
+
+def test_parse_single_name_no_eof_peek():
+    """Verify that parsing a single NAME token with no subsequent token succeeds without crashing."""
+    tokens = [make_token(TokenType.NAME, "x")]
+    ast = parse_stmt_list(tokens)
+    assert isinstance(ast, VarNode)
+    assert ast.token.value == "x"
+
+
+def test_environment_basic():
+    """Verify that Environment stores and retrieves values correctly."""
+    env = Environment()
+    env["x"] = 42
+    assert env["x"] == 42
+    
+    # Test setting and getting string and float
+    env["pi"] = 3.14
+    env["name"] = "test"
+    assert env["pi"] == 3.14
+    assert env["name"] == "test"
+
+
+def test_evaluate_var_node_with_env():
+    """Verify evaluating a VarNode with an environment returns its value."""
+    env = Environment()
+    env["x"] = 100
+    node = VarNode(make_token(TokenType.NAME, "x"))
+    assert evaluate(node, env) == 100
+
+
+def test_evaluate_assignment_with_env():
+    """Verify evaluating an assignment updates the environment and returns the value."""
+    env = Environment()
+    tokens = [
+        make_token(TokenType.NAME, "x"),
+        make_token(TokenType.ASSIGN, "="),
+        make_token(TokenType.INTEGER, "42"),
+    ]
+    ast = parse_stmt_list(tokens)
+    res = evaluate(ast, env)
+    assert res == 42
+    assert env["x"] == 42
+
+
+def test_evaluate_bin_op_with_env_propagation():
+    """Verify that variables can be used in binary operations during evaluation."""
+    env = Environment()
+    env["x"] = 5
+    from stpython.lexer import parse as lex_parse
+    tokens = lex_parse("x + 1")
+    ast = parse_stmt_list(tokens)
+    assert evaluate(ast, env) == 6
+
+
+def test_evaluate_assignment_rhs_var_with_env_propagation():
+    """Verify that assigning a variable to another variable evaluates correctly using the env."""
+    env = Environment()
+    env["x"] = 42
+    from stpython.lexer import parse as lex_parse
+    tokens = lex_parse("y = x")
+    ast = parse_stmt_list(tokens)
+    
+    res = evaluate(ast, env)
+    assert res == 42
+    assert env["y"] == 42
+
+
+def test_environment_undefined_variable_raises_name_error():
+    """Verify that referencing an undefined variable in the environment raises a NameError."""
+    env = Environment()
+    node = VarNode(make_token(TokenType.NAME, "a"))
+    with pytest.raises(NameError) as exc_info:
+        evaluate(node, env)
+    assert "name a is not defined" in str(exc_info.value)
+
