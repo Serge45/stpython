@@ -98,15 +98,24 @@ class Lexer:
             start_column = self.column
             chars = [char]
             while next_char := self.peek():
-                if next_char in '1234567890':
+                if next_char in '1234567890.':
                     self.advance()
                     chars.append(next_char)
                 else:
                     break
 
-            if len(chars) > 1 and chars[0] == '0':
-                raise TokenError(f"Leading zeros in decimal integer literals are not permitted: {''.join(chars)}")
+            if len(chars) > 1:
+                if chars[0] == '0':
+                    raise TokenError(f"Leading zeros in decimal integer literals are not permitted: {''.join(chars)}")
 
+                num_dots = len([i for i in chars if i == '.'])
+                if num_dots == 1:
+                    token = Token(start_line, start_column, TokenType.FLOAT, "".join(chars))
+                    self.advance()
+                    return token
+                elif num_dots > 1:
+                    raise TokenError(f"Multiple decimal points in floating point literal: {''.join(chars)}")
+            
             token = Token(start_line, start_column, TokenType.INTEGER, "".join(chars))
             self.advance()
             return token

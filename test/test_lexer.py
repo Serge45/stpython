@@ -198,11 +198,20 @@ def test_name_tokens_basic():
 
 
 def test_name_tokens_with_underscores():
-    """Verify name tokenization of names containing underscores in the middle or end.
-
-    NOTE: This test is expected to fail on the current implementation of Lexer.
-    """
+    """Verify name tokenization of names containing underscores in the middle or end."""
     tokens = collect_tokens("foo_bar")
     assert tokens == [Token(line=1, column=1, ttype=TokenType.NAME, value="foo_bar")]
+
+
+def test_float_tokens_basic():
+    """Verify basic float tokenization."""
+    tokens = collect_tokens("12.34")
+    assert tokens == [Token(line=1, column=1, ttype=TokenType.FLOAT, value="12.34")]
+
+
+def test_float_tokens_multiple_decimals():
+    """Verify that multiple decimal points in a float raise a TokenError."""
+    with pytest.raises(TokenError):
+        collect_tokens("1.2.3")
 
 
