@@ -100,12 +100,15 @@ def test_newline_handling():
     tokens = collect_tokens("1\n+")
     assert tokens == [
         Token(line=1, column=1, ttype=TokenType.INTEGER, value="1"),
+        Token(line=1, column=2, ttype=TokenType.NEWLINE, value="\n"),
         Token(line=2, column=1, ttype=TokenType.PLUS, value="+"),
     ]
 
     tokens = collect_tokens("1\n\n\n=")
     assert tokens == [
         Token(line=1, column=1, ttype=TokenType.INTEGER, value="1"),
+        Token(line=1, column=2, ttype=TokenType.NEWLINE, value="\n"),
+        Token(line=3, column=1, ttype=TokenType.NEWLINE, value="\n"),
         Token(line=4, column=1, ttype=TokenType.ASSIGN, value="="),
     ]
 
@@ -213,5 +216,200 @@ def test_float_tokens_multiple_decimals():
     """Verify that multiple decimal points in a float raise a TokenError."""
     with pytest.raises(TokenError):
         collect_tokens("1.2.3")
+
+
+def test_basic_indent_dedent():
+    """Verify single level of indentation and dedentation."""
+    code = (
+        "x = 1\n"
+        "  y = 2\n"
+        "z = 3"
+    )
+    tokens = collect_tokens(code)
+    assert tokens == [
+        Token(line=1, column=1, ttype=TokenType.NAME, value="x"),
+        Token(line=1, column=3, ttype=TokenType.ASSIGN, value="="),
+        Token(line=1, column=5, ttype=TokenType.INTEGER, value="1"),
+        Token(line=1, column=6, ttype=TokenType.NEWLINE, value="\n"),
+        Token(line=2, column=1, ttype=TokenType.INDENT, value="  "),
+        Token(line=2, column=3, ttype=TokenType.NAME, value="y"),
+        Token(line=2, column=5, ttype=TokenType.ASSIGN, value="="),
+        Token(line=2, column=7, ttype=TokenType.INTEGER, value="2"),
+        Token(line=2, column=8, ttype=TokenType.NEWLINE, value="\n"),
+        Token(line=3, column=1, ttype=TokenType.DEDENT, value=""),
+        Token(line=3, column=1, ttype=TokenType.NAME, value="z"),
+        Token(line=3, column=3, ttype=TokenType.ASSIGN, value="="),
+        Token(line=3, column=5, ttype=TokenType.INTEGER, value="3"),
+    ]
+
+
+def test_eof_indent_cleanup():
+    """Verify that any remaining indentation levels are cleaned up with DEDENT tokens at EOF."""
+    code = (
+        "x = 1\n"
+        "  y = 2\n"
+        "    z = 3"
+    )
+    tokens = collect_tokens(code)
+    assert tokens == [
+        Token(line=1, column=1, ttype=TokenType.NAME, value="x"),
+        Token(line=1, column=3, ttype=TokenType.ASSIGN, value="="),
+        Token(line=1, column=5, ttype=TokenType.INTEGER, value="1"),
+        Token(line=1, column=6, ttype=TokenType.NEWLINE, value="\n"),
+        Token(line=2, column=1, ttype=TokenType.INDENT, value="  "),
+        Token(line=2, column=3, ttype=TokenType.NAME, value="y"),
+        Token(line=2, column=5, ttype=TokenType.ASSIGN, value="="),
+        Token(line=2, column=7, ttype=TokenType.INTEGER, value="2"),
+        Token(line=2, column=8, ttype=TokenType.NEWLINE, value="\n"),
+        Token(line=3, column=1, ttype=TokenType.INDENT, value="    "),
+        Token(line=3, column=5, ttype=TokenType.NAME, value="z"),
+        Token(line=3, column=7, ttype=TokenType.ASSIGN, value="="),
+        Token(line=3, column=9, ttype=TokenType.INTEGER, value="3"),
+        Token(line=3, column=10, ttype=TokenType.DEDENT, value=""),
+        Token(line=3, column=10, ttype=TokenType.DEDENT, value=""),
+    ]
+
+
+def test_nested_indent_dedent():
+    """Verify nested indentation and multiple dedent tokens in sequence."""
+    code = (
+        "x = 1\n"
+        "  y = 2\n"
+        "    z = 3\n"
+        "  w = 4\n"
+        "a = 5"
+    )
+    tokens = collect_tokens(code)
+    assert tokens == [
+        Token(line=1, column=1, ttype=TokenType.NAME, value="x"),
+        Token(line=1, column=3, ttype=TokenType.ASSIGN, value="="),
+        Token(line=1, column=5, ttype=TokenType.INTEGER, value="1"),
+        Token(line=1, column=6, ttype=TokenType.NEWLINE, value="\n"),
+        Token(line=2, column=1, ttype=TokenType.INDENT, value="  "),
+        Token(line=2, column=3, ttype=TokenType.NAME, value="y"),
+        Token(line=2, column=5, ttype=TokenType.ASSIGN, value="="),
+        Token(line=2, column=7, ttype=TokenType.INTEGER, value="2"),
+        Token(line=2, column=8, ttype=TokenType.NEWLINE, value="\n"),
+        Token(line=3, column=1, ttype=TokenType.INDENT, value="    "),
+        Token(line=3, column=5, ttype=TokenType.NAME, value="z"),
+        Token(line=3, column=7, ttype=TokenType.ASSIGN, value="="),
+        Token(line=3, column=9, ttype=TokenType.INTEGER, value="3"),
+        Token(line=3, column=10, ttype=TokenType.NEWLINE, value="\n"),
+        Token(line=4, column=1, ttype=TokenType.DEDENT, value=""),
+        Token(line=4, column=3, ttype=TokenType.NAME, value="w"),
+        Token(line=4, column=5, ttype=TokenType.ASSIGN, value="="),
+        Token(line=4, column=7, ttype=TokenType.INTEGER, value="4"),
+        Token(line=4, column=8, ttype=TokenType.NEWLINE, value="\n"),
+        Token(line=5, column=1, ttype=TokenType.DEDENT, value=""),
+        Token(line=5, column=1, ttype=TokenType.NAME, value="a"),
+        Token(line=5, column=3, ttype=TokenType.ASSIGN, value="="),
+        Token(line=5, column=5, ttype=TokenType.INTEGER, value="5"),
+    ]
+
+
+def test_whitespace_and_blank_lines():
+    """Verify that completely empty lines or lines with only whitespace are ignored and do not trigger INDENT/DEDENT."""
+    code = (
+        "x = 1\n"
+        "\n"
+        "  \n"
+        "  y = 2\n"
+        "  \n"
+        "z = 3"
+    )
+    tokens = collect_tokens(code)
+    assert tokens == [
+        Token(line=1, column=1, ttype=TokenType.NAME, value="x"),
+        Token(line=1, column=3, ttype=TokenType.ASSIGN, value="="),
+        Token(line=1, column=5, ttype=TokenType.INTEGER, value="1"),
+        Token(line=1, column=6, ttype=TokenType.NEWLINE, value="\n"),
+        Token(line=2, column=1, ttype=TokenType.NEWLINE, value="\n"),
+        Token(line=3, column=3, ttype=TokenType.NEWLINE, value="\n"),
+        Token(line=4, column=1, ttype=TokenType.INDENT, value="  "),
+        Token(line=4, column=3, ttype=TokenType.NAME, value="y"),
+        Token(line=4, column=5, ttype=TokenType.ASSIGN, value="="),
+        Token(line=4, column=7, ttype=TokenType.INTEGER, value="2"),
+        Token(line=4, column=8, ttype=TokenType.NEWLINE, value="\n"),
+        Token(line=5, column=3, ttype=TokenType.NEWLINE, value="\n"),
+        Token(line=6, column=1, ttype=TokenType.DEDENT, value=""),
+        Token(line=6, column=1, ttype=TokenType.NAME, value="z"),
+        Token(line=6, column=3, ttype=TokenType.ASSIGN, value="="),
+        Token(line=6, column=5, ttype=TokenType.INTEGER, value="3"),
+    ]
+
+
+def test_mismatched_dedent_error():
+    """Verify that a dedent to a non-existent indentation level raises a TokenError."""
+    code = (
+        "x = 1\n"
+        "    y = 2\n"
+        "  z = 3"
+    )
+    with pytest.raises(TokenError) as exc_info:
+        collect_tokens(code)
+    assert "indent" in str(exc_info.value).lower() or "dedent" in str(exc_info.value).lower()
+
+
+def test_tab_indentation():
+    """Verify that tabs can also be used for indentation, but mixing them with spaces is not allowed."""
+    code = (
+        "x = 1\n"
+        "\ty = 2"
+    )
+    tokens = collect_tokens(code)
+    assert tokens == [
+        Token(line=1, column=1, ttype=TokenType.NAME, value="x"),
+        Token(line=1, column=3, ttype=TokenType.ASSIGN, value="="),
+        Token(line=1, column=5, ttype=TokenType.INTEGER, value="1"),
+        Token(line=1, column=6, ttype=TokenType.NEWLINE, value="\n"),
+        Token(line=2, column=1, ttype=TokenType.INDENT, value="\t"),
+        Token(line=2, column=2, ttype=TokenType.NAME, value="y"),
+        Token(line=2, column=4, ttype=TokenType.ASSIGN, value="="),
+        Token(line=2, column=6, ttype=TokenType.INTEGER, value="2"),
+        Token(line=2, column=7, ttype=TokenType.DEDENT, value=""),
+    ]
+
+
+def test_mixed_indentation_error():
+    """Verify that mixing spaces and tabs for indentation raises a TokenError."""
+    code = (
+        "x = 1\n"
+        "  y = 2\n"
+        "\t  z = 3"
+    )
+    with pytest.raises(TokenError):
+        collect_tokens(code)
+
+
+def test_multi_level_dedent():
+    """Verify that dedenting multiple levels at once (e.g. from 4 spaces to 0 spaces) emits multiple DEDENT tokens."""
+    code = (
+        "x = 1\n"
+        "  y = 2\n"
+        "    z = 3\n"
+        "a = 4"
+    )
+    tokens = collect_tokens(code)
+    assert tokens == [
+        Token(line=1, column=1, ttype=TokenType.NAME, value="x"),
+        Token(line=1, column=3, ttype=TokenType.ASSIGN, value="="),
+        Token(line=1, column=5, ttype=TokenType.INTEGER, value="1"),
+        Token(line=1, column=6, ttype=TokenType.NEWLINE, value="\n"),
+        Token(line=2, column=1, ttype=TokenType.INDENT, value="  "),
+        Token(line=2, column=3, ttype=TokenType.NAME, value="y"),
+        Token(line=2, column=5, ttype=TokenType.ASSIGN, value="="),
+        Token(line=2, column=7, ttype=TokenType.INTEGER, value="2"),
+        Token(line=2, column=8, ttype=TokenType.NEWLINE, value="\n"),
+        Token(line=3, column=1, ttype=TokenType.INDENT, value="    "),
+        Token(line=3, column=5, ttype=TokenType.NAME, value="z"),
+        Token(line=3, column=7, ttype=TokenType.ASSIGN, value="="),
+        Token(line=3, column=9, ttype=TokenType.INTEGER, value="3"),
+        Token(line=3, column=10, ttype=TokenType.NEWLINE, value="\n"),
+        Token(line=4, column=1, ttype=TokenType.DEDENT, value=""),
+        Token(line=4, column=1, ttype=TokenType.DEDENT, value=""),
+        Token(line=4, column=1, ttype=TokenType.NAME, value="a"),
+        Token(line=4, column=3, ttype=TokenType.ASSIGN, value="="),
+        Token(line=4, column=5, ttype=TokenType.INTEGER, value="4"),
+    ]
 
 

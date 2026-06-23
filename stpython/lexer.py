@@ -1,3 +1,5 @@
+from enum import unique
+import dataclasses
 from enum import Enum, auto
 from typing import List, Any
 from dataclasses import dataclass
@@ -19,6 +21,9 @@ class TokenType(Enum):
     FLOAT_DIVIDE = auto()
     LEFT_PAREN = auto()
     RIGHT_PAREN = auto()
+    INDENT = auto()
+    DEDENT = auto()
+    NEWLINE = auto()
     EOF = auto()
 
 @dataclass
@@ -35,6 +40,9 @@ class Lexer:
         self.line: int = 1
         self.column: int = 1
         self.cursor: int = 0
+        self.cur_token: Token | None = None
+        self.indent_stack: List[str] = ['']
+        self.pending_dedent: List = []
 
     def advance(self, newline=False) -> str | None:
         if self.cursor >= len(self.source):
@@ -58,41 +66,86 @@ class Lexer:
             return None
         return self.source[self.cursor + 1]
 
-    def get_next_token(self) -> Token | None:
-        while self.cursor < len(self.source):
-            char = self.source[self.cursor]
-            if char in ' \t':
-                self.advance()
-            elif char == '\n':
+    def handle_newline(self) -> Token | None:
+        chars = []
+        indent_col = self.column
+        while self.cursor < len(self.source) and self.source[self.cursor] in ' \t':
+            chars.append(self.source[self.cursor])
+            self.advance()
+
+        if self.source[self.cursor] == '\n':
+            # consume all following empty lines
+            while self.peek() == '\n':
                 self.advance(newline=True)
-            else:
-                break
+            return None
+
+        indent = ''.join(chars)
+        last_indent = self.indent_stack[-1]
+
+        if len(set(indent)) > 1:
+            raise TokenError(f"Mixed spaces and tabs in indentation at {self.line}:{self.column}")
+
+        if len(indent) > len(last_indent):
+            self.indent_stack.append(indent)
+            return Token(self.line, indent_col, TokenType.INDENT, indent)
+        elif len(indent) == len(last_indent):
+            if indent == last_indent:
+                return None
+            raise TokenError(f"Unexpected indent at {self.line}:{self.column}")
+        else:
+            while len(self.indent_stack[-1]) > len(indent):
+                self.pending_dedent.append(Token(self.line, indent_col, TokenType.DEDENT, ''))
+                self.indent_stack.pop()
+            if self.indent_stack[-1] != indent:
+                raise TokenError(f"Unexpected indent at {self.line}:{self.column}")
+            return None
+
+    def get_next_token(self) -> Token | None:
+        if self.pending_dedent:
+            self.cur_token = self.pending_dedent.pop()
+            return self.cur_token
 
         if self.cursor >= len(self.source):
-            return Token(self.line, self.column, TokenType.EOF, None)
+            if len(self.indent_stack) > 1:
+                self.indent_stack.pop()
+                self.cur_token = Token(self.line, self.column, TokenType.DEDENT, '')
+            else:
+                self.cur_token = Token(self.line, self.column, TokenType.EOF, None)
+            return self.cur_token
+
+        if self.cur_token is not None and self.cur_token.ttype == TokenType.NEWLINE:
+            token = self.handle_newline()
+            if token is not None:
+                self.cur_token = token
+                return token
+            elif self.pending_dedent:
+                self.cur_token = self.pending_dedent.pop()
+                return self.cur_token
+
+        # consume non-leading spaces and tabs
+        while self.cursor < len(self.source) and self.source[self.cursor] in ' \t':
+            self.advance()
 
         char = self.source[self.cursor]
-        
-        if char == '+':
+
+        if char == '\n':
+            token = Token(self.line, self.column, TokenType.NEWLINE, char)
+            self.advance(newline=True)
+        elif char == '+':
             token = Token(self.line, self.column, TokenType.PLUS, char)
             self.advance()
-            return token
         elif char == '-':
             token = Token(self.line, self.column, TokenType.MINUS, char)
             self.advance()
-            return token
         elif char == '(':
             token = Token(self.line, self.column, TokenType.LEFT_PAREN, char)
             self.advance()
-            return token
         elif char == ')':
             token = Token(self.line, self.column, TokenType.RIGHT_PAREN, char)
             self.advance()
-            return token
         elif char == '*':
             token = Token(self.line, self.column, TokenType.MULTIPLY, char)
             self.advance()
-            return token
         elif char in '1234567890':
             start_line = self.line
             start_column = self.column
@@ -118,7 +171,6 @@ class Lexer:
             
             token = Token(start_line, start_column, TokenType.INTEGER, "".join(chars))
             self.advance()
-            return token
         elif char.isalpha() or char == '_':
             start_line = self.line
             start_column = self.column
@@ -131,18 +183,23 @@ class Lexer:
                     break
             token = Token(start_line, start_column, TokenType.NAME, "".join(chars))
             self.advance()
-            return token
         elif char == '=':
             if self.peek() == '=':
                 token = Token(self.line, self.column, TokenType.EQUAL, "==")
-                #advance for second =
                 self.advance()
             else:
                 token = Token(self.line, self.column, TokenType.ASSIGN, char)
             self.advance()
-            return token
         else:
             assert False, f"Unknown token {char} at {self.line}:{self.column}"
+
+        self.cur_token = token
+
+        # consume trailing spaces and tabs
+        if self.cur_token and self.cur_token.ttype != TokenType.NEWLINE:
+            while self.cursor < len(self.source) and self.source[self.cursor] in ' \t':
+                self.advance()
+        return token
 
 def parse(code: str) -> List[Token]:
     lexer = Lexer(code)
