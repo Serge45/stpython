@@ -413,3 +413,56 @@ def test_multi_level_dedent():
     ]
 
 
+def test_trailing_spaces_eof_crash():
+    """Verify that trailing spaces at the end of the file do not cause IndexError."""
+    code = "x = 1\n  "
+    tokens = collect_tokens(code)
+    assert tokens == [
+        Token(line=1, column=1, ttype=TokenType.NAME, value="x"),
+        Token(line=1, column=3, ttype=TokenType.ASSIGN, value="="),
+        Token(line=1, column=5, ttype=TokenType.INTEGER, value="1"),
+        Token(line=1, column=6, ttype=TokenType.NEWLINE, value="\n"),
+    ]
+
+
+def test_trailing_spaces_eof_dedent_cleanup():
+    """Verify that remaining indentation levels are cleaned up even with trailing whitespace at EOF."""
+    code = "x = 1\n  y = 2\n  "
+    tokens = collect_tokens(code)
+    assert tokens == [
+        Token(line=1, column=1, ttype=TokenType.NAME, value="x"),
+        Token(line=1, column=3, ttype=TokenType.ASSIGN, value="="),
+        Token(line=1, column=5, ttype=TokenType.INTEGER, value="1"),
+        Token(line=1, column=6, ttype=TokenType.NEWLINE, value="\n"),
+        Token(line=2, column=1, ttype=TokenType.INDENT, value="  "),
+        Token(line=2, column=3, ttype=TokenType.NAME, value="y"),
+        Token(line=2, column=5, ttype=TokenType.ASSIGN, value="="),
+        Token(line=2, column=7, ttype=TokenType.INTEGER, value="2"),
+        Token(line=2, column=8, ttype=TokenType.NEWLINE, value="\n"),
+        Token(line=3, column=1, ttype=TokenType.DEDENT, value=""),
+    ]
+
+
+
+def test_spaces_only_eof_crash():
+    """Verify that a source file containing only spaces does not cause IndexError."""
+    code = "  "
+    tokens = collect_tokens(code)
+    assert tokens == []
+
+
+def test_leading_indentation_first_line():
+    """Verify that leading indentation on the first line is not silently ignored."""
+    code = "  x = 1"
+    with pytest.raises(TokenError):
+        collect_tokens(code)
+
+
+def test_leading_indentation_after_blank_line():
+    """Verify that leading indentation after a blank line is not silently ignored/allowed."""
+    code = "\n  x = 1"
+    with pytest.raises(TokenError):
+        collect_tokens(code)
+
+
+

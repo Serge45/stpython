@@ -43,6 +43,7 @@ class Lexer:
         self.cur_token: Token | None = None
         self.indent_stack: List[str] = ['']
         self.pending_dedent: List = []
+        self.has_content: bool = False
 
     def advance(self, newline=False) -> str | None:
         if self.cursor >= len(self.source):
@@ -73,6 +74,9 @@ class Lexer:
             chars.append(self.source[self.cursor])
             self.advance()
 
+        if self.cursor >= len(self.source):
+            return None
+
         if self.source[self.cursor] == '\n':
             # consume all following empty lines
             while self.peek() == '\n':
@@ -86,6 +90,8 @@ class Lexer:
             raise TokenError(f"Mixed spaces and tabs in indentation at {self.line}:{self.column}")
 
         if len(indent) > len(last_indent):
+            if self.has_content is False and last_indent == '':
+                raise TokenError(f"Unexpected indent at {self.line}:{self.column}")
             self.indent_stack.append(indent)
             return Token(self.line, indent_col, TokenType.INDENT, indent)
         elif len(indent) == len(last_indent):
@@ -113,7 +119,7 @@ class Lexer:
                 self.cur_token = Token(self.line, self.column, TokenType.EOF, None)
             return self.cur_token
 
-        if self.cur_token is not None and self.cur_token.ttype == TokenType.NEWLINE:
+        if (self.cur_token is not None and self.cur_token.ttype == TokenType.NEWLINE) or self.column == 1:
             token = self.handle_newline()
             if token is not None:
                 self.cur_token = token
@@ -125,6 +131,15 @@ class Lexer:
         # consume non-leading spaces and tabs
         while self.cursor < len(self.source) and self.source[self.cursor] in ' \t':
             self.advance()
+
+        # handle trailing spaces, only one newline at the end of the file and EOF
+        if self.cursor >= len(self.source):
+            if len(self.indent_stack) > 1:
+                self.indent_stack.pop()
+                self.cur_token = Token(self.line, 1, TokenType.DEDENT, '')
+            else:
+                self.cur_token = Token(self.line, self.column, TokenType.EOF, None)
+            return self.cur_token
 
         char = self.source[self.cursor]
 
@@ -194,6 +209,9 @@ class Lexer:
             assert False, f"Unknown token {char} at {self.line}:{self.column}"
 
         self.cur_token = token
+
+        if self.has_content is False and token.ttype not in (TokenType.INDENT, TokenType.DEDENT, TokenType.NEWLINE,):
+            self.has_content = True
 
         # consume trailing spaces and tabs
         if self.cur_token and self.cur_token.ttype != TokenType.NEWLINE:
