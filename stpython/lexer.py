@@ -24,6 +24,9 @@ class TokenType(Enum):
     INDENT = auto()
     DEDENT = auto()
     NEWLINE = auto()
+    COLON = auto()
+    IF = auto()
+    ELSE = auto()
     EOF = auto()
 
 @dataclass
@@ -196,7 +199,15 @@ class Lexer:
                     chars.append(next_char)
                 else:
                     break
-            token = Token(start_line, start_column, TokenType.NAME, "".join(chars))
+
+            name = "".join(chars)
+
+            if name == "if":
+                token = Token(start_line, start_column, TokenType.IF, name)
+            elif name == "else":
+                token = Token(start_line, start_column, TokenType.ELSE, name)
+            else:
+                token = Token(start_line, start_column, TokenType.NAME, name)
             self.advance()
         elif char == '=':
             if self.peek() == '=':
@@ -204,6 +215,9 @@ class Lexer:
                 self.advance()
             else:
                 token = Token(self.line, self.column, TokenType.ASSIGN, char)
+            self.advance()
+        elif char == ':':
+            token = Token(self.line, self.column, TokenType.COLON, char)
             self.advance()
         else:
             assert False, f"Unknown token {char} at {self.line}:{self.column}"

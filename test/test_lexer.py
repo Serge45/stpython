@@ -465,4 +465,23 @@ def test_leading_indentation_after_blank_line():
         collect_tokens(code)
 
 
+def test_lexer_colon_token():
+    """Verify that a colon is tokenized as TokenType.COLON."""
+    tokens = collect_tokens(":")
+    assert tokens == [Token(line=1, column=1, ttype=TokenType.COLON, value=":")]
+
+
+def test_lexer_if_else_keywords():
+    """Verify that if and else are tokenized as IF and ELSE tokens instead of generic NAMEs."""
+    tokens = collect_tokens("if x:\n  y = 2\nelse:\n  y = 3")
+    
+    assert len(tokens) >= 12
+    assert tokens[0].ttype == TokenType.IF
+    assert tokens[2].ttype == TokenType.COLON
+    assert tokens[4].ttype == TokenType.INDENT
+    assert tokens[9].ttype == TokenType.DEDENT
+    assert tokens[10].ttype == TokenType.ELSE
+    assert tokens[11].ttype == TokenType.COLON
+
+
 

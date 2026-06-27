@@ -1,7 +1,7 @@
 import pytest
 from stpython.lexer import Token, TokenType
 from stpython.parser import (
-    Parser, evaluate, ASTNode, IntNode, FloatNode, StrNode, BinOpNode, UnaryOpNode, AssignOpNode, VarNode, Environment
+    Parser, evaluate, ASTNode, IntNode, FloatNode, StrNode, BinOpNode, UnaryOpNode, AssignOpNode, VarNode, Environment, BlockNode, IfNode
 )
 
 
@@ -479,4 +479,150 @@ def test_environment_undefined_variable_raises_name_error():
     with pytest.raises(NameError) as exc_info:
         evaluate(node, env)
     assert "name a is not defined" in str(exc_info.value)
+
+
+@pytest.mark.xfail(reason="Parser does not yet support parsing 'if' statements")
+def test_parse_if_statement_basic():
+    """Verify parsing of a basic 'if' statement without 'else'."""
+    # Source:
+    # if x:
+    #   y = 2
+    tokens = [
+        make_token(TokenType.IF, "if"),
+        make_token(TokenType.NAME, "x"),
+        make_token(TokenType.COLON, ":"),
+        make_token(TokenType.NEWLINE, "\n"),
+        make_token(TokenType.INDENT, "  "),
+        make_token(TokenType.NAME, "y"),
+        make_token(TokenType.ASSIGN, "="),
+        make_token(TokenType.INTEGER, "2"),
+        make_token(TokenType.NEWLINE, "\n"),
+        make_token(TokenType.DEDENT, ""),
+        make_token(TokenType.EOF, None),
+    ]
+    parser = Parser(tokens)
+    ast = parser.stmt()
+    
+    assert isinstance(ast, IfNode)
+    assert isinstance(ast.condition, VarNode)
+    assert ast.condition.token.value == "x"
+    
+    assert isinstance(ast.then_branch, BlockNode)
+    assert len(ast.then_branch.statements) == 1
+    stmt = ast.then_branch.statements[0]
+    assert isinstance(stmt, AssignOpNode)
+    assert stmt.left.token.value == "y"
+    assert stmt.right.token.value == "2"
+    assert ast.else_branch is None
+
+
+@pytest.mark.xfail(reason="Parser does not yet support parsing 'if-else' statements")
+def test_parse_if_else_statement():
+    """Verify parsing of an 'if' statement with an 'else' block."""
+    # Source:
+    # if x:
+    #   y = 2
+    # else:
+    #   y = 3
+    tokens = [
+        make_token(TokenType.IF, "if"),
+        make_token(TokenType.NAME, "x"),
+        make_token(TokenType.COLON, ":"),
+        make_token(TokenType.NEWLINE, "\n"),
+        make_token(TokenType.INDENT, "  "),
+        make_token(TokenType.NAME, "y"),
+        make_token(TokenType.ASSIGN, "="),
+        make_token(TokenType.INTEGER, "2"),
+        make_token(TokenType.NEWLINE, "\n"),
+        make_token(TokenType.DEDENT, ""),
+        make_token(TokenType.ELSE, "else"),
+        make_token(TokenType.COLON, ":"),
+        make_token(TokenType.NEWLINE, "\n"),
+        make_token(TokenType.INDENT, "  "),
+        make_token(TokenType.NAME, "y"),
+        make_token(TokenType.ASSIGN, "="),
+        make_token(TokenType.INTEGER, "3"),
+        make_token(TokenType.NEWLINE, "\n"),
+        make_token(TokenType.DEDENT, ""),
+        make_token(TokenType.EOF, None),
+    ]
+    parser = Parser(tokens)
+    ast = parser.stmt()
+    
+    assert isinstance(ast, IfNode)
+    assert isinstance(ast.condition, VarNode)
+    assert ast.condition.token.value == "x"
+    
+    assert isinstance(ast.then_branch, BlockNode)
+    assert len(ast.then_branch.statements) == 1
+    assert ast.then_branch.statements[0].right.token.value == "2"
+    
+    assert isinstance(ast.else_branch, BlockNode)
+    assert len(ast.else_branch.statements) == 1
+    assert ast.else_branch.statements[0].right.token.value == "3"
+
+
+@pytest.mark.xfail(reason="evaluate() does not yet support evaluating IfNode or BlockNode")
+def test_evaluate_if_then_branch():
+    """Verify that evaluate executes the 'then' branch when condition is truthy (non-zero)."""
+    env = Environment()
+    env["x"] = 1
+    
+    # AST for:
+    # if x:
+    #   y = 2
+    # else:
+    #   y = 3
+    
+    cond = VarNode(make_token(TokenType.NAME, "x"))
+    
+    then_stmt = AssignOpNode(make_token(TokenType.ASSIGN, "="))
+    then_stmt.left = VarNode(make_token(TokenType.NAME, "y"))
+    then_stmt.right = IntNode(make_token(TokenType.INTEGER, "2"))
+    then_block = BlockNode(make_token(TokenType.INDENT, "  "))
+    then_block.statements = [then_stmt]
+    
+    else_stmt = AssignOpNode(make_token(TokenType.ASSIGN, "="))
+    else_stmt.left = VarNode(make_token(TokenType.NAME, "y"))
+    else_stmt.right = IntNode(make_token(TokenType.INTEGER, "3"))
+    else_block = BlockNode(make_token(TokenType.INDENT, "  "))
+    else_block.statements = [else_stmt]
+    
+    if_node = IfNode(make_token(TokenType.IF, "if"))
+    if_node.condition = cond
+    if_node.then_branch = then_block
+    if_node.else_branch = else_block
+    
+    evaluate(if_node, env)
+    assert env["y"] == 2
+
+
+@pytest.mark.xfail(reason="evaluate() does not yet support evaluating IfNode or BlockNode")
+def test_evaluate_if_else_branch():
+    """Verify that evaluate executes the 'else' branch when condition is falsy (zero)."""
+    env = Environment()
+    env["x"] = 0
+    
+    # Same AST as above
+    cond = VarNode(make_token(TokenType.NAME, "x"))
+    
+    then_stmt = AssignOpNode(make_token(TokenType.ASSIGN, "="))
+    then_stmt.left = VarNode(make_token(TokenType.NAME, "y"))
+    then_stmt.right = IntNode(make_token(TokenType.INTEGER, "2"))
+    then_block = BlockNode(make_token(TokenType.INDENT, "  "))
+    then_block.statements = [then_stmt]
+    
+    else_stmt = AssignOpNode(make_token(TokenType.ASSIGN, "="))
+    else_stmt.left = VarNode(make_token(TokenType.NAME, "y"))
+    else_stmt.right = IntNode(make_token(TokenType.INTEGER, "3"))
+    else_block = BlockNode(make_token(TokenType.INDENT, "  "))
+    else_block.statements = [else_stmt]
+    
+    if_node = IfNode(make_token(TokenType.IF, "if"))
+    if_node.condition = cond
+    if_node.then_branch = then_block
+    if_node.else_branch = else_block
+    
+    evaluate(if_node, env)
+    assert env["y"] == 3
 

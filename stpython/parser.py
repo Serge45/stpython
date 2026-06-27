@@ -50,6 +50,24 @@ class UnaryOpNode(ASTNode):
     def __repr__(self):
         return f"UnaryOpNode(op: {self.op} {self.val})"
 
+class BlockNode(ASTNode):
+    def __init__(self, token: Token):
+        super().__init__(token)
+        self.statements: List[ASTNode] = []
+
+    def __repr__(self):
+        return f"BlockNode({self.statements})"
+
+class IfNode(ASTNode):
+    def __init__(self, token: Token):
+        super().__init__(token)
+        self.condition: ASTNode = None
+        self.then_branch: BlockNode = None
+        self.else_branch: BlockNode = None
+
+    def __repr__(self):
+        return f"IfNode(cond: {self.condition}, then: {self.then_branch}, else: {self.else_branch})"
+
 class Parser:
     def __init__(self, tokens: List[Token]):
         self.tokens = tokens
