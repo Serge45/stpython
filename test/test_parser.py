@@ -481,7 +481,6 @@ def test_environment_undefined_variable_raises_name_error():
     assert "name a is not defined" in str(exc_info.value)
 
 
-@pytest.mark.xfail(reason="Parser does not yet support parsing 'if' statements")
 def test_parse_if_statement_basic():
     """Verify parsing of a basic 'if' statement without 'else'."""
     # Source:
@@ -516,7 +515,6 @@ def test_parse_if_statement_basic():
     assert ast.else_branch is None
 
 
-@pytest.mark.xfail(reason="Parser does not yet support parsing 'if-else' statements")
 def test_parse_if_else_statement():
     """Verify parsing of an 'if' statement with an 'else' block."""
     # Source:

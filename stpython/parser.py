@@ -86,9 +86,47 @@ class Parser:
         self.cur_token = self.tokens[self.cursor] if self.cursor < len(self.tokens) else None
         return self.cur_token
 
+    def advance_until_nonnewline(self) -> Token:
+        while self.cur_token.ttype == TokenType.NEWLINE:
+            self.advance()
+        return self.cur_token
+
+    def block(self) -> BlockNode:
+        self.advance_until_nonnewline()
+
+        assert self.cur_token.ttype == TokenType.INDENT
+        self.advance()
+        node = BlockNode(self.cur_token)
+
+        while self.cur_token.ttype != TokenType.DEDENT:
+            node.statements.append(self.stmt())
+            self.advance_until_nonnewline()
+
+        assert self.cur_token.ttype == TokenType.DEDENT
+        self.advance()
+        return node
+
     def stmt(self) -> ASTNode:
+        self.advance_until_nonnewline()
+
+        if self.cur_token.ttype == TokenType.IF:
+            self.advance()
+            node = IfNode(self.cur_token)
+            node.condition = self.expr()
+            if self.cur_token.ttype != TokenType.COLON:
+                raise SyntaxError(f"{self.cur_token.row}:{self.cur_token.col} Expected ':' after 'if' condition.")
+            self.advance()
+            node.then_branch = self.block()
+
+            if self.cur_token.ttype == TokenType.ELSE:
+                self.advance()
+                if self.cur_token.ttype != TokenType.COLON:
+                    raise SyntaxError(f"{self.cur_token.row}:{self.cur_token.col} Expected ':' after 'else' statement.")
+                self.advance()
+                node.else_branch = self.block()
+            return node
         # for x = 1 pattern
-        if self.cur_token.ttype == TokenType.NAME and self.peek() is not None and self.peek().ttype == TokenType.ASSIGN:
+        elif self.cur_token.ttype == TokenType.NAME and self.peek() is not None and self.peek().ttype == TokenType.ASSIGN:
             self.advance()
             self.advance()
             node = AssignOpNode(self.tokens[self.cursor - 1])
@@ -205,6 +243,16 @@ def evaluate(node: ASTNode, env: Environment = None) -> int | float | str:
         if env is None:
             return node.token.value
         return env[node.token.value]
+    elif isinstance(node, BlockNode):
+        last = None
+        for statement in node.statements:
+            last = evaluate(statement, env)
+        return last
+    elif isinstance(node, IfNode):
+        if evaluate(node.condition, env):
+            return evaluate(node.then_branch, env)
+        else:
+            return evaluate(node.else_branch, env)
     else:
         raise ValueError(f'Unexpected node {node}')
 
