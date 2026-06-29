@@ -114,14 +114,14 @@ class Parser:
             node = IfNode(self.cur_token)
             node.condition = self.expr()
             if self.cur_token.ttype != TokenType.COLON:
-                raise SyntaxError(f"{self.cur_token.row}:{self.cur_token.col} Expected ':' after 'if' condition.")
+                raise SyntaxError(f"{self.cur_token.line}:{self.cur_token.column} Expected ':' after 'if' condition.")
             self.advance()
             node.then_branch = self.block()
 
             if self.cur_token.ttype == TokenType.ELSE:
                 self.advance()
                 if self.cur_token.ttype != TokenType.COLON:
-                    raise SyntaxError(f"{self.cur_token.row}:{self.cur_token.col} Expected ':' after 'else' statement.")
+                    raise SyntaxError(f"{self.cur_token.line}:{self.cur_token.column} Expected ':' after 'else' statement.")
                 self.advance()
                 node.else_branch = self.block()
             return node
@@ -251,8 +251,9 @@ def evaluate(node: ASTNode, env: Environment = None) -> int | float | str:
     elif isinstance(node, IfNode):
         if evaluate(node.condition, env):
             return evaluate(node.then_branch, env)
-        else:
+        elif node.else_branch is not None:
             return evaluate(node.else_branch, env)
+        return None
     else:
         raise ValueError(f'Unexpected node {node}')
 

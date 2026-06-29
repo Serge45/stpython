@@ -560,7 +560,6 @@ def test_parse_if_else_statement():
     assert ast.else_branch.statements[0].right.token.value == "3"
 
 
-@pytest.mark.xfail(reason="evaluate() does not yet support evaluating IfNode or BlockNode")
 def test_evaluate_if_then_branch():
     """Verify that evaluate executes the 'then' branch when condition is truthy (non-zero)."""
     env = Environment()
@@ -595,7 +594,6 @@ def test_evaluate_if_then_branch():
     assert env["y"] == 2
 
 
-@pytest.mark.xfail(reason="evaluate() does not yet support evaluating IfNode or BlockNode")
 def test_evaluate_if_else_branch():
     """Verify that evaluate executes the 'else' branch when condition is falsy (zero)."""
     env = Environment()
@@ -624,3 +622,70 @@ def test_evaluate_if_else_branch():
     evaluate(if_node, env)
     assert env["y"] == 3
 
+
+def test_evaluate_if_no_else_falsy_condition():
+    """Verify that evaluate handles IfNode without else branch and falsy condition safely (returning None)."""
+    env = Environment()
+    env["x"] = 0
+    
+    cond = VarNode(make_token(TokenType.NAME, "x"))
+    then_stmt = AssignOpNode(make_token(TokenType.ASSIGN, "="))
+    then_stmt.left = VarNode(make_token(TokenType.NAME, "y"))
+    then_stmt.right = IntNode(make_token(TokenType.INTEGER, "2"))
+    then_block = BlockNode(make_token(TokenType.INDENT, "  "))
+    then_block.statements = [then_stmt]
+    
+    if_node = IfNode(make_token(TokenType.IF, "if"))
+    if_node.condition = cond
+    if_node.then_branch = then_block
+    if_node.else_branch = None
+    
+    res = evaluate(if_node, env)
+    assert res is None
+
+
+def test_parser_missing_colon_attribute_error():
+    """Verify that a missing colon raises a SyntaxError, not an AttributeError."""
+    tokens = [
+        make_token(TokenType.IF, "if"),
+        make_token(TokenType.NAME, "x"),
+        make_token(TokenType.NEWLINE, "\n"),
+        make_token(TokenType.INDENT, "  "),
+        make_token(TokenType.NAME, "y"),
+        make_token(TokenType.ASSIGN, "="),
+        make_token(TokenType.INTEGER, "2"),
+        make_token(TokenType.NEWLINE, "\n"),
+        make_token(TokenType.DEDENT, ""),
+        make_token(TokenType.EOF, None),
+    ]
+    parser = Parser(tokens)
+    with pytest.raises(SyntaxError):
+        parser.stmt()
+
+
+def test_parser_missing_colon_else_syntax_error():
+    """Verify that a missing colon after 'else' raises a SyntaxError, not an AttributeError."""
+    tokens = [
+        make_token(TokenType.IF, "if"),
+        make_token(TokenType.NAME, "x"),
+        make_token(TokenType.COLON, ":"),
+        make_token(TokenType.NEWLINE, "\n"),
+        make_token(TokenType.INDENT, "  "),
+        make_token(TokenType.NAME, "y"),
+        make_token(TokenType.ASSIGN, "="),
+        make_token(TokenType.INTEGER, "2"),
+        make_token(TokenType.NEWLINE, "\n"),
+        make_token(TokenType.DEDENT, ""),
+        make_token(TokenType.ELSE, "else"),
+        make_token(TokenType.NEWLINE, "\n"),
+        make_token(TokenType.INDENT, "  "),
+        make_token(TokenType.NAME, "y"),
+        make_token(TokenType.ASSIGN, "="),
+        make_token(TokenType.INTEGER, "3"),
+        make_token(TokenType.NEWLINE, "\n"),
+        make_token(TokenType.DEDENT, ""),
+        make_token(TokenType.EOF, None),
+    ]
+    parser = Parser(tokens)
+    with pytest.raises(SyntaxError):
+        parser.stmt()
