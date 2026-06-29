@@ -151,10 +151,12 @@ class Parser:
             return node
         # for x = 1 pattern
         elif self.cur_token.ttype == TokenType.NAME and self.peek() is not None and self.peek().ttype == TokenType.ASSIGN:
+            name = self.cur_token
             self.advance()
+            assign = self.cur_token
             self.advance()
-            node = AssignOpNode(self.tokens[self.cursor - 1])
-            node.left = VarNode(self.tokens[self.cursor - 2])
+            node = AssignOpNode(assign)
+            node.left = VarNode(name)
             node.right = self.expr()
             return node
         return self.expr()
