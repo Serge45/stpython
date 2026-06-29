@@ -25,6 +25,7 @@ class TokenType(Enum):
     DEDENT = auto()
     NEWLINE = auto()
     COLON = auto()
+    COMMA = auto()
     IF = auto()
     ELSE = auto()
     WHILE = auto()
@@ -164,6 +165,9 @@ class Lexer:
             self.advance()
         elif char == '*':
             token = Token(self.line, self.column, TokenType.MULTIPLY, char)
+            self.advance()
+        elif char == ',':
+            token = Token(self.line, self.column, TokenType.COMMA, char)
             self.advance()
         elif char in '1234567890':
             start_line = self.line

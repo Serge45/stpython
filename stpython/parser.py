@@ -1,5 +1,7 @@
 from stpython.lexer import Token, TokenType
-from typing import List
+from typing import List, FrozenSet
+
+BUILTIN_FUNCTIONS: FrozenSet[str] = frozenset({'print'})
 
 class ASTNode:
     def __init__(self, token: Token):
@@ -76,6 +78,15 @@ class WhileNode(ASTNode):
 
     def __repr__(self):
         return f"WhileNode(cond: {self.condition}, body: {self.body})"
+
+class CallNode(ASTNode):
+    def __init__(self, token: Token):
+        super().__init__(token)
+        self.func_name: str = self.token.value
+        self.args: List[ASTNode] = []
+
+    def __repr__(self):
+        return f"CallNode(func_name: {self.func_name}, args: {self.args})"
 
 class Parser:
     def __init__(self, tokens: List[Token]):
@@ -217,15 +228,44 @@ class Parser:
             node.expr = self.factor()
             return node
         elif self.cur_token.ttype == TokenType.NAME:
-            node = VarNode(self.cur_token)
-            self.advance()
-            return node
+            if self.cur_token.value in BUILTIN_FUNCTIONS:
+                node = CallNode(self.cur_token)
+                self.advance()
+                if self.cur_token.ttype != TokenType.LEFT_PAREN:
+                    raise ValueError("Expected '('")
+                self.advance()
+
+                while self.cur_token.ttype != TokenType.RIGHT_PAREN:
+                    node.args.append(self.expr())
+
+                    if self.cur_token.ttype == TokenType.RIGHT_PAREN:
+                        break
+                    elif self.cur_token.ttype != TokenType.COMMA:
+                        if self.peek() is None:
+                            raise ValueError(f"{self.cur_token.line}:{self.cur_token.column} Expected ',' or ')' after '{node.func_name}' function call.")
+                        elif self.peek().ttype != TokenType.RIGHT_PAREN:
+                            raise ValueError(f"{self.cur_token.line}:{self.cur_token.column} Expected ',' or ')' after '{node.func_name}' function call.")
+                    
+                    self.advance()
+
+                if self.cur_token is None or self.cur_token.ttype != TokenType.RIGHT_PAREN:
+                    raise ValueError(f"{self.cur_token.line}:{self.cur_token.column} Expected ')' after '{node.func_name}' function call.")
+                # skip )
+                self.advance()
+                return node
+            else:
+                node = VarNode(self.cur_token)
+                self.advance()
+                return node
         else:
             raise ValueError(f'Unexpected token {self.cur_token}')
 
 class Environment:
     def __init__(self):
         self.values = {}
+        self.builtins = {
+            "print": print
+        }
 
     def __getitem__(self, key: str) -> int | float | str:
         if key not in self.values:
@@ -286,6 +326,12 @@ def evaluate(node: ASTNode, env: Environment = None) -> int | float | str:
         while evaluate(node.condition, env):
             ret = evaluate(node.body, env)
         return ret
+    elif isinstance(node, CallNode):
+        func = env.builtins.get(node.func_name, None)
+        if func is None:
+            raise NameError(f'name {node.func_name} is not defined')
+        args = [evaluate(arg, env) for arg in node.args]
+        return func(*args)
     else:
         raise ValueError(f'Unexpected node {node}')
 

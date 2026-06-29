@@ -777,3 +777,52 @@ def test_evaluate_while_loop():
     
     evaluate(while_node, env)
     assert env["x"] == 0
+
+
+def test_parse_print_statement():
+    """Verify parsing of a print call statement."""
+    from stpython.parser import CallNode
+    tokens = [
+        make_token(TokenType.NAME, "print"),
+        make_token(TokenType.LEFT_PAREN, "("),
+        make_token(TokenType.NAME, "x"),
+        make_token(TokenType.RIGHT_PAREN, ")"),
+        make_token(TokenType.EOF, None),
+    ]
+    parser = Parser(tokens)
+    ast = parser.stmt()
+    
+    assert isinstance(ast, CallNode)
+    assert ast.func_name == "print"
+    assert len(ast.args) == 1
+    assert isinstance(ast.args[0], VarNode)
+    assert ast.args[0].token.value == "x"
+
+
+def test_parse_print_missing_right_paren():
+    """Verify that a missing right parenthesis in a print call raises an error."""
+    tokens = [
+        make_token(TokenType.NAME, "print"),
+        make_token(TokenType.LEFT_PAREN, "("),
+        make_token(TokenType.NAME, "x"),
+        make_token(TokenType.EOF, None),
+    ]
+    parser = Parser(tokens)
+    with pytest.raises(ValueError):
+        parser.stmt()
+        assert parser.cur_token.ttype == TokenType.EOF
+
+
+def test_evaluate_print_statement(capsys):
+    """Verify that evaluate prints the evaluated argument to stdout."""
+    from stpython.parser import CallNode
+    env = Environment()
+    env["x"] = 42
+    
+    call_node = CallNode(make_token(TokenType.NAME, "print"))
+    call_node.args = [VarNode(make_token(TokenType.NAME, "x"))]
+    
+    evaluate(call_node, env)
+    
+    captured = capsys.readouterr()
+    assert captured.out == "42\n"
