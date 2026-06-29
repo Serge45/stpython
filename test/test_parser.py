@@ -826,3 +826,39 @@ def test_evaluate_print_statement(capsys):
     
     captured = capsys.readouterr()
     assert captured.out == "42\n"
+
+
+def test_integration_power_loop(capsys):
+    """Verify parsing and evaluating a complete script with a while loop, variables, and print."""
+    from stpython.lexer import parse as lex_parse
+    
+    code = """
+val = 2
+guess = 1
+i = 5
+
+while i:
+    guess = guess * val
+    i = i - 1
+    print(guess)
+"""
+    tokens = lex_parse(code)
+    parser = Parser(tokens)
+    
+    statements = []
+    # Parse all statements until EOF
+    while parser.cur_token.ttype != TokenType.EOF:
+        statements.append(parser.stmt())
+        
+    env = Environment()
+    for stmt in statements:
+        evaluate(stmt, env)
+        
+    # Verify environment state
+    assert env["val"] == 2
+    assert env["guess"] == 32
+    assert env["i"] == 0
+    
+    # Verify printed outputs
+    captured = capsys.readouterr()
+    assert captured.out == "2\n4\n8\n16\n32\n"
