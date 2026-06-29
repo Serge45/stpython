@@ -125,8 +125,8 @@ class Parser:
         self.advance_until_nonnewline()
 
         if self.cur_token.ttype == TokenType.IF:
-            self.advance()
             node = IfNode(self.cur_token)
+            self.advance()
             node.condition = self.expr()
             if self.cur_token.ttype != TokenType.COLON:
                 raise SyntaxError(f"{self.cur_token.line}:{self.cur_token.column} Expected ':' after 'if' condition.")
@@ -141,8 +141,8 @@ class Parser:
                 node.else_branch = self.block()
             return node
         elif self.cur_token.ttype == TokenType.WHILE:
-            self.advance()
             node = WhileNode(self.cur_token)
+            self.advance()
             node.condition = self.expr()
             if self.cur_token.ttype != TokenType.COLON:
                 raise SyntaxError(f"{self.cur_token.line}:{self.cur_token.column} Expected ':' after 'while' condition.")
