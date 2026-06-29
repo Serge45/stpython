@@ -70,6 +70,12 @@ class IfNode(ASTNode):
 
 class Parser:
     def __init__(self, tokens: List[Token]):
+        if tokens and tokens[-1].ttype != TokenType.EOF:
+            last_tok = tokens[-1]
+            col = last_tok.column + len(str(last_tok.value or ''))
+            tokens = list(tokens) + [Token(last_tok.line, col, TokenType.EOF, None)]
+        elif not tokens:
+            tokens = [Token(1, 1, TokenType.EOF, None)]
         self.tokens = tokens
         self.cursor = -1
         self.cur_token = self.advance()

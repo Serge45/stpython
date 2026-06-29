@@ -689,3 +689,12 @@ def test_parser_missing_colon_else_syntax_error():
     parser = Parser(tokens)
     with pytest.raises(SyntaxError):
         parser.stmt()
+
+
+def test_evaluate_multiple_nested_unary_operators():
+    """Verify that multiple nested unary minus operators like '3----2' are correctly parsed and evaluated to 5."""
+    from stpython.lexer import parse as lex_parse
+    tokens = lex_parse("3----2")
+    parser = Parser(tokens)
+    ast = parser.expr()
+    assert evaluate(ast) == 5
