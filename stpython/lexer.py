@@ -27,6 +27,7 @@ class TokenType(Enum):
     COLON = auto()
     IF = auto()
     ELSE = auto()
+    WHILE = auto()
     EOF = auto()
 
 @dataclass
@@ -206,6 +207,8 @@ class Lexer:
                 token = Token(start_line, start_column, TokenType.IF, name)
             elif name == "else":
                 token = Token(start_line, start_column, TokenType.ELSE, name)
+            elif name == "while":
+                token = Token(start_line, start_column, TokenType.WHILE, name)
             else:
                 token = Token(start_line, start_column, TokenType.NAME, name)
             self.advance()

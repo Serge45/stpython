@@ -484,4 +484,13 @@ def test_lexer_if_else_keywords():
     assert tokens[11].ttype == TokenType.COLON
 
 
+def test_lexer_while_keyword():
+    """Verify that 'while' is tokenized as a WHILE token."""
+    tokens = collect_tokens("while x:")
+    assert len(tokens) >= 3
+    assert tokens[0].ttype == TokenType.WHILE
+    assert tokens[1].ttype == TokenType.NAME
+    assert tokens[2].ttype == TokenType.COLON
+
+
 

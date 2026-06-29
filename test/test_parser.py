@@ -698,3 +698,82 @@ def test_evaluate_multiple_nested_unary_operators():
     parser = Parser(tokens)
     ast = parser.expr()
     assert evaluate(ast) == 5
+
+
+def test_parse_while_statement():
+    """Verify parsing of a basic while loop."""
+    from stpython.parser import WhileNode
+    from stpython.lexer import TokenType
+    tokens = [
+        make_token(TokenType.WHILE, "while"),
+        make_token(TokenType.NAME, "x"),
+        make_token(TokenType.COLON, ":"),
+        make_token(TokenType.NEWLINE, "\n"),
+        make_token(TokenType.INDENT, "  "),
+        make_token(TokenType.NAME, "y"),
+        make_token(TokenType.ASSIGN, "="),
+        make_token(TokenType.INTEGER, "2"),
+        make_token(TokenType.NEWLINE, "\n"),
+        make_token(TokenType.DEDENT, ""),
+        make_token(TokenType.EOF, None),
+    ]
+    parser = Parser(tokens)
+    ast = parser.stmt()
+    
+    assert isinstance(ast, WhileNode)
+    assert isinstance(ast.condition, VarNode)
+    assert ast.condition.token.value == "x"
+    assert isinstance(ast.body, BlockNode)
+    assert len(ast.body.statements) == 1
+    assert ast.body.statements[0].right.token.value == "2"
+
+
+def test_parse_while_missing_colon():
+    """Verify that a missing colon after 'while' condition raises a SyntaxError."""
+    from stpython.lexer import TokenType
+    tokens = [
+        make_token(TokenType.WHILE, "while"),
+        make_token(TokenType.NAME, "x"),
+        make_token(TokenType.NEWLINE, "\n"),
+        make_token(TokenType.INDENT, "  "),
+        make_token(TokenType.NAME, "y"),
+        make_token(TokenType.ASSIGN, "="),
+        make_token(TokenType.INTEGER, "2"),
+        make_token(TokenType.NEWLINE, "\n"),
+        make_token(TokenType.DEDENT, ""),
+        make_token(TokenType.EOF, None),
+    ]
+    parser = Parser(tokens)
+    with pytest.raises(SyntaxError):
+        parser.stmt()
+
+
+def test_evaluate_while_loop():
+    """Verify that evaluate executes the while loop body until condition is falsy."""
+    from stpython.parser import WhileNode
+    from stpython.lexer import TokenType
+    env = Environment()
+    env["x"] = 3
+    
+    # AST for:
+    # while x:
+    #   x = x - 1
+    cond = VarNode(make_token(TokenType.NAME, "x"))
+    
+    sub_expr = BinOpNode(make_token(TokenType.MINUS, "-"))
+    sub_expr.left = VarNode(make_token(TokenType.NAME, "x"))
+    sub_expr.right = IntNode(make_token(TokenType.INTEGER, "1"))
+    
+    body_stmt = AssignOpNode(make_token(TokenType.ASSIGN, "="))
+    body_stmt.left = VarNode(make_token(TokenType.NAME, "x"))
+    body_stmt.right = sub_expr
+    
+    body_block = BlockNode(make_token(TokenType.INDENT, "  "))
+    body_block.statements = [body_stmt]
+    
+    while_node = WhileNode(make_token(TokenType.WHILE, "while"))
+    while_node.condition = cond
+    while_node.body = body_block
+    
+    evaluate(while_node, env)
+    assert env["x"] == 0

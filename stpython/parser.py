@@ -68,6 +68,15 @@ class IfNode(ASTNode):
     def __repr__(self):
         return f"IfNode(cond: {self.condition}, then: {self.then_branch}, else: {self.else_branch})"
 
+class WhileNode(ASTNode):
+    def __init__(self, token: Token):
+        super().__init__(token)
+        self.condition: ASTNode = None
+        self.body: BlockNode = None
+
+    def __repr__(self):
+        return f"WhileNode(cond: {self.condition}, body: {self.body})"
+
 class Parser:
     def __init__(self, tokens: List[Token]):
         if tokens and tokens[-1].ttype != TokenType.EOF:
@@ -130,6 +139,15 @@ class Parser:
                     raise SyntaxError(f"{self.cur_token.line}:{self.cur_token.column} Expected ':' after 'else' statement.")
                 self.advance()
                 node.else_branch = self.block()
+            return node
+        elif self.cur_token.ttype == TokenType.WHILE:
+            self.advance()
+            node = WhileNode(self.cur_token)
+            node.condition = self.expr()
+            if self.cur_token.ttype != TokenType.COLON:
+                raise SyntaxError(f"{self.cur_token.line}:{self.cur_token.column} Expected ':' after 'while' condition.")
+            self.advance()
+            node.body = self.block()
             return node
         # for x = 1 pattern
         elif self.cur_token.ttype == TokenType.NAME and self.peek() is not None and self.peek().ttype == TokenType.ASSIGN:
@@ -255,11 +273,17 @@ def evaluate(node: ASTNode, env: Environment = None) -> int | float | str:
             last = evaluate(statement, env)
         return last
     elif isinstance(node, IfNode):
+        ret = None
         if evaluate(node.condition, env):
-            return evaluate(node.then_branch, env)
+            ret = evaluate(node.then_branch, env)
         elif node.else_branch is not None:
-            return evaluate(node.else_branch, env)
-        return None
+            ret = evaluate(node.else_branch, env)
+        return ret
+    elif isinstance(node, WhileNode):
+        ret = None
+        while evaluate(node.condition, env):
+            ret = evaluate(node.body, env)
+        return ret
     else:
         raise ValueError(f'Unexpected node {node}')
 
