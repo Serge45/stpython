@@ -115,8 +115,8 @@ def test_newline_handling():
 def test_unknown_character_assertion():
     """Verify that unknown characters raise an AssertionError."""
     with pytest.raises(AssertionError) as exc_info:
-        collect_tokens("1%2")
-    assert "Unknown token %" in str(exc_info.value)
+        collect_tokens("1@2")
+    assert "Unknown token @" in str(exc_info.value)
 
     with pytest.raises(AssertionError) as exc_info:
         collect_tokens("@")
@@ -493,4 +493,69 @@ def test_lexer_while_keyword():
     assert tokens[2].ttype == TokenType.COLON
 
 
+def test_lexer_all_binary_operators():
+    """Verify that all Python binary operators are tokenized correctly."""
+    # Test float division /
+    tokens = collect_tokens("/")
+    assert len(tokens) == 1
+    assert tokens[0].ttype == TokenType.FLOAT_DIVIDE
 
+    # Test integer division //
+    tokens = collect_tokens("//")
+    assert len(tokens) == 1
+    assert tokens[0].ttype == TokenType.INT_DIVIDE
+
+    # Test modulo %
+    tokens = collect_tokens("%")
+    assert len(tokens) == 1
+    assert tokens[0].ttype == TokenType.MODULO
+
+    # Test power **
+    tokens = collect_tokens("**")
+    assert len(tokens) == 1
+    assert tokens[0].ttype == TokenType.EXPONENTIATION
+
+    # Test bitwise AND &
+    tokens = collect_tokens("&")
+    assert len(tokens) == 1
+    assert tokens[0].ttype == TokenType.BITWISE_AND
+
+    # Test bitwise OR |
+    tokens = collect_tokens("|")
+    assert len(tokens) == 1
+    assert tokens[0].ttype == TokenType.BITWISE_OR
+
+    # Test bitwise XOR ^
+    tokens = collect_tokens("^")
+    assert len(tokens) == 1
+    assert tokens[0].ttype == TokenType.BITWISE_XOR
+
+    # Test bitwise left shift <<
+    tokens = collect_tokens("<<")
+    assert len(tokens) == 1
+    assert tokens[0].ttype == TokenType.BITWISE_LEFTSHIFT
+
+    # Test bitwise right shift >>
+    tokens = collect_tokens(">>")
+    assert len(tokens) == 1
+    assert tokens[0].ttype == TokenType.BITWISE_RIGHTSHIFT
+
+    # Test less than <
+    tokens = collect_tokens("<")
+    assert len(tokens) == 1
+    assert tokens[0].ttype == TokenType.LESS_THAN
+
+    # Test greater than >
+    tokens = collect_tokens(">")
+    assert len(tokens) == 1
+    assert tokens[0].ttype == TokenType.GREATER_THAN
+
+    # Test less than or equal to <=
+    tokens = collect_tokens("<=")
+    assert len(tokens) == 1
+    assert tokens[0].ttype == TokenType.LESS_THAN_EQUAL
+
+    # Test greater than or equal to >=
+    tokens = collect_tokens(">=")
+    assert len(tokens) == 1
+    assert tokens[0].ttype == TokenType.GREATER_THAN_EQUAL

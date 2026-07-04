@@ -17,8 +17,20 @@ class TokenType(Enum):
     PLUS = auto()
     MINUS = auto()
     MULTIPLY = auto()
+    EXPONENTIATION = auto()
     INT_DIVIDE = auto()
     FLOAT_DIVIDE = auto()
+    LESS_THAN = auto()
+    LESS_THAN_EQUAL = auto()
+    GREATER_THAN = auto()
+    GREATER_THAN_EQUAL = auto()
+    MODULO = auto()
+    BITWISE_AND = auto()
+    BITWISE_OR = auto()
+    BITWISE_XOR = auto()
+    BITWISE_NOT = auto()
+    BITWISE_LEFTSHIFT = auto()
+    BITWISE_RIGHTSHIFT = auto()
     LEFT_PAREN = auto()
     RIGHT_PAREN = auto()
     INDENT = auto()
@@ -164,8 +176,61 @@ class Lexer:
             token = Token(self.line, self.column, TokenType.RIGHT_PAREN, char)
             self.advance()
         elif char == '*':
-            token = Token(self.line, self.column, TokenType.MULTIPLY, char)
+            next_char = self.peek()
+            if next_char == '*':
+                token = Token(self.line, self.column, TokenType.EXPONENTIATION, '**')
+                self.advance()
+                self.advance()
+            else:
+                token = Token(self.line, self.column, TokenType.MULTIPLY, char)
+                self.advance()
+        elif char == '/':
+            next_char = self.peek()
+            if next_char == '/':
+                token = Token(self.line, self.column, TokenType.INT_DIVIDE, '//')
+                self.advance()
+                self.advance()
+            else:
+                token = Token(self.line, self.column, TokenType.FLOAT_DIVIDE, '/')
+                self.advance()
+        elif char == '%':
+            token = Token(self.line, self.column, TokenType.MODULO, '%')
             self.advance()
+        elif char == '|':
+            token = Token(self.line, self.column, TokenType.BITWISE_OR, '|')
+            self.advance()
+        elif char == '&':
+            token = Token(self.line, self.column, TokenType.BITWISE_AND, '&')
+            self.advance()
+        elif char == '^':
+            token = Token(self.line, self.column, TokenType.BITWISE_XOR, '^')
+            self.advance()
+        elif char == '<':
+            next_char = self.peek()
+            if next_char == '<':
+                token = Token(self.line, self.column, TokenType.BITWISE_LEFTSHIFT, '<<')
+                self.advance()
+                self.advance()
+            elif next_char == '=':
+                token = Token(self.line, self.column, TokenType.LESS_THAN_EQUAL, '<=')
+                self.advance()
+                self.advance()
+            else:
+                token = Token(self.line, self.column, TokenType.LESS_THAN, '<')
+                self.advance()
+        elif char == '>':
+            next_char = self.peek()
+            if next_char == '>':
+                token = Token(self.line, self.column, TokenType.BITWISE_RIGHTSHIFT, '>>')
+                self.advance()
+                self.advance()
+            elif next_char == '=':
+                token = Token(self.line, self.column, TokenType.GREATER_THAN_EQUAL, '>=')
+                self.advance()
+                self.advance()
+            else:
+                token = Token(self.line, self.column, TokenType.GREATER_THAN, '>')
+                self.advance()
         elif char == ',':
             token = Token(self.line, self.column, TokenType.COMMA, char)
             self.advance()
