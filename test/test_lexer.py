@@ -493,8 +493,8 @@ def test_lexer_while_keyword():
     assert tokens[2].ttype == TokenType.COLON
 
 
-def test_lexer_all_binary_operators():
-    """Verify that all Python binary operators are tokenized correctly."""
+def test_lexer_division_and_modulo():
+    """Verify division, floor division, and modulo operator tokenization."""
     # Test float division /
     tokens = collect_tokens("/")
     assert len(tokens) == 1
@@ -510,11 +510,16 @@ def test_lexer_all_binary_operators():
     assert len(tokens) == 1
     assert tokens[0].ttype == TokenType.MODULO
 
-    # Test power **
+
+def test_lexer_exponentiation():
+    """Verify exponentiation operator tokenization."""
     tokens = collect_tokens("**")
     assert len(tokens) == 1
     assert tokens[0].ttype == TokenType.EXPONENTIATION
 
+
+def test_lexer_bitwise_operators():
+    """Verify bitwise AND, OR, and XOR operator tokenization."""
     # Test bitwise AND &
     tokens = collect_tokens("&")
     assert len(tokens) == 1
@@ -530,6 +535,9 @@ def test_lexer_all_binary_operators():
     assert len(tokens) == 1
     assert tokens[0].ttype == TokenType.BITWISE_XOR
 
+
+def test_lexer_shift_operators():
+    """Verify bitwise shift operator tokenization."""
     # Test bitwise left shift <<
     tokens = collect_tokens("<<")
     assert len(tokens) == 1
@@ -540,6 +548,9 @@ def test_lexer_all_binary_operators():
     assert len(tokens) == 1
     assert tokens[0].ttype == TokenType.BITWISE_RIGHTSHIFT
 
+
+def test_lexer_comparison_operators():
+    """Verify relational comparison operator tokenization."""
     # Test less than <
     tokens = collect_tokens("<")
     assert len(tokens) == 1

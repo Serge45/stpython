@@ -865,12 +865,11 @@ while i:
 
 
 @pytest.mark.xfail(reason="New binary operators are not yet parsed or supported in parser.py", raises=(AttributeError, NameError, AssertionError, Exception))
-def test_parser_binary_operator_precedence():
-    """Verify parsing precedence and associativity of all binary operators."""
+def test_parser_precedence_exponentiation():
+    """Verify parsing precedence and associativity of exponentiation (**)."""
     from stpython.lexer import TokenType
 
-    # 1. Right associativity of power: 2 ** 3 ** 2
-    # Equivalent to: 2 ** (3 ** 2)
+    # 1. Right associativity of power: 2 ** 3 ** 2 -> 2 ** (3 ** 2)
     tokens = [
         make_token(TokenType.INTEGER, "2"),
         make_token(TokenType.EXPONENTIATION, "**"),
@@ -889,8 +888,7 @@ def test_parser_binary_operator_precedence():
     assert ast.right.left.token.value == "3"
     assert ast.right.right.token.value == "2"
 
-    # 2. Power has higher precedence than unary minus: -2 ** 3
-    # Equivalent to: -(2 ** 3)
+    # 2. Power has higher precedence than unary minus: -2 ** 3 -> -(2 ** 3)
     tokens = [
         make_token(TokenType.MINUS, "-"),
         make_token(TokenType.INTEGER, "2"),
@@ -904,8 +902,13 @@ def test_parser_binary_operator_precedence():
     assert isinstance(ast.expr, BinOpNode)
     assert ast.expr.op == TokenType.EXPONENTIATION
 
-    # 3. Shift has lower precedence than addition: 1 << 2 + 3
-    # Equivalent to: 1 << (2 + 3)
+
+@pytest.mark.xfail(reason="New binary operators are not yet parsed or supported in parser.py", raises=(AttributeError, NameError, AssertionError, Exception))
+def test_parser_precedence_shifts():
+    """Verify parsing precedence of shift operators (<<, >>)."""
+    from stpython.lexer import TokenType
+
+    # Shift has lower precedence than addition: 1 << 2 + 3 -> 1 << (2 + 3)
     tokens = [
         make_token(TokenType.INTEGER, "1"),
         make_token(TokenType.BITWISE_LEFTSHIFT, "<<"),
@@ -920,8 +923,13 @@ def test_parser_binary_operator_precedence():
     assert isinstance(ast.right, BinOpNode)
     assert ast.right.op == TokenType.PLUS
 
-    # 4. Bitwise AND has lower precedence than shift: 1 & 2 << 3
-    # Equivalent to: 1 & (2 << 3)
+
+@pytest.mark.xfail(reason="New binary operators are not yet parsed or supported in parser.py", raises=(AttributeError, NameError, AssertionError, Exception))
+def test_parser_precedence_bitwise():
+    """Verify parsing precedence between bitwise AND (&), XOR (^), and OR (|)."""
+    from stpython.lexer import TokenType
+
+    # 1. Bitwise AND has lower precedence than shift: 1 & 2 << 3 -> 1 & (2 << 3)
     tokens = [
         make_token(TokenType.INTEGER, "1"),
         make_token(TokenType.BITWISE_AND, "&"),
@@ -936,8 +944,7 @@ def test_parser_binary_operator_precedence():
     assert isinstance(ast.right, BinOpNode)
     assert ast.right.op == TokenType.BITWISE_LEFTSHIFT
 
-    # 5. Bitwise XOR has lower precedence than bitwise AND: 1 ^ 2 & 3
-    # Equivalent to: 1 ^ (2 & 3)
+    # 2. Bitwise XOR has lower precedence than bitwise AND: 1 ^ 2 & 3 -> 1 ^ (2 & 3)
     tokens = [
         make_token(TokenType.INTEGER, "1"),
         make_token(TokenType.BITWISE_XOR, "^"),
@@ -952,8 +959,7 @@ def test_parser_binary_operator_precedence():
     assert isinstance(ast.right, BinOpNode)
     assert ast.right.op == TokenType.BITWISE_AND
 
-    # 6. Bitwise OR has lower precedence than bitwise XOR: 1 | 2 ^ 3
-    # Equivalent to: 1 | (2 ^ 3)
+    # 3. Bitwise OR has lower precedence than bitwise XOR: 1 | 2 ^ 3 -> 1 | (2 ^ 3)
     tokens = [
         make_token(TokenType.INTEGER, "1"),
         make_token(TokenType.BITWISE_OR, "|"),
@@ -968,8 +974,13 @@ def test_parser_binary_operator_precedence():
     assert isinstance(ast.right, BinOpNode)
     assert ast.right.op == TokenType.BITWISE_XOR
 
-    # 7. Comparison has lower precedence than bitwise OR: 1 | 2 < 3
-    # Equivalent to: (1 | 2) < 3
+
+@pytest.mark.xfail(reason="New binary operators are not yet parsed or supported in parser.py", raises=(AttributeError, NameError, AssertionError, Exception))
+def test_parser_precedence_comparisons():
+    """Verify parsing precedence of comparison operators (<, >, <=, >=)."""
+    from stpython.lexer import TokenType
+
+    # Comparison has lower precedence than bitwise OR: 1 | 2 < 3 -> (1 | 2) < 3
     tokens = [
         make_token(TokenType.INTEGER, "1"),
         make_token(TokenType.BITWISE_OR, "|"),
@@ -986,10 +997,10 @@ def test_parser_binary_operator_precedence():
 
 
 @pytest.mark.xfail(reason="New binary operators evaluation is not yet supported in parser.py", raises=(AttributeError, NameError, AssertionError, Exception))
-def test_evaluate_all_binary_operators():
-    """Verify correct evaluation of all binary operators."""
+def test_evaluate_division_and_modulo():
+    """Verify evaluation of division, floor division, and modulo."""
     from stpython.lexer import TokenType
-    
+
     # 1. Float division: 5 / 2 -> 2.5
     node = BinOpNode(make_token(TokenType.FLOAT_DIVIDE, "/"))
     node.left = IntNode(make_token(TokenType.INTEGER, "5"))
@@ -1008,61 +1019,84 @@ def test_evaluate_all_binary_operators():
     node.right = IntNode(make_token(TokenType.INTEGER, "2"))
     assert evaluate(node) == 1
 
-    # 4. Power: 2 ** 3 -> 8
+
+@pytest.mark.xfail(reason="New binary operators evaluation is not yet supported in parser.py", raises=(AttributeError, NameError, AssertionError, Exception))
+def test_evaluate_exponentiation():
+    """Verify evaluation of exponentiation (**)."""
+    from stpython.lexer import TokenType
+
     node = BinOpNode(make_token(TokenType.EXPONENTIATION, "**"))
     node.left = IntNode(make_token(TokenType.INTEGER, "2"))
     node.right = IntNode(make_token(TokenType.INTEGER, "3"))
     assert evaluate(node) == 8
 
-    # 5. Bitwise AND: 6 & 3 -> 2
+
+@pytest.mark.xfail(reason="New binary operators evaluation is not yet supported in parser.py", raises=(AttributeError, NameError, AssertionError, Exception))
+def test_evaluate_bitwise_operators():
+    """Verify evaluation of bitwise AND, OR, and XOR."""
+    from stpython.lexer import TokenType
+
+    # 1. Bitwise AND: 6 & 3 -> 2
     node = BinOpNode(make_token(TokenType.BITWISE_AND, "&"))
     node.left = IntNode(make_token(TokenType.INTEGER, "6"))
     node.right = IntNode(make_token(TokenType.INTEGER, "3"))
     assert evaluate(node) == 2
 
-    # 6. Bitwise OR: 6 | 3 -> 7
+    # 2. Bitwise OR: 6 | 3 -> 7
     node = BinOpNode(make_token(TokenType.BITWISE_OR, "|"))
     node.left = IntNode(make_token(TokenType.INTEGER, "6"))
     node.right = IntNode(make_token(TokenType.INTEGER, "3"))
     assert evaluate(node) == 7
 
-    # 7. Bitwise XOR: 6 ^ 3 -> 5
+    # 3. Bitwise XOR: 6 ^ 3 -> 5
     node = BinOpNode(make_token(TokenType.BITWISE_XOR, "^"))
     node.left = IntNode(make_token(TokenType.INTEGER, "6"))
     node.right = IntNode(make_token(TokenType.INTEGER, "3"))
     assert evaluate(node) == 5
 
-    # 8. Left shift: 2 << 3 -> 16
+
+@pytest.mark.xfail(reason="New binary operators evaluation is not yet supported in parser.py", raises=(AttributeError, NameError, AssertionError, Exception))
+def test_evaluate_shift_operators():
+    """Verify evaluation of left and right shift operators."""
+    from stpython.lexer import TokenType
+
+    # 1. Left shift: 2 << 3 -> 16
     node = BinOpNode(make_token(TokenType.BITWISE_LEFTSHIFT, "<<"))
     node.left = IntNode(make_token(TokenType.INTEGER, "2"))
     node.right = IntNode(make_token(TokenType.INTEGER, "3"))
     assert evaluate(node) == 16
 
-    # 9. Right shift: 8 >> 2 -> 2
+    # 2. Right shift: 8 >> 2 -> 2
     node = BinOpNode(make_token(TokenType.BITWISE_RIGHTSHIFT, ">>"))
     node.left = IntNode(make_token(TokenType.INTEGER, "8"))
     node.right = IntNode(make_token(TokenType.INTEGER, "2"))
     assert evaluate(node) == 2
 
-    # 10. Less than: 3 < 5 -> True
+
+@pytest.mark.xfail(reason="New binary operators evaluation is not yet supported in parser.py", raises=(AttributeError, NameError, AssertionError, Exception))
+def test_evaluate_comparison_operators():
+    """Verify evaluation of comparison operators (<, >, <=, >=)."""
+    from stpython.lexer import TokenType
+
+    # 1. Less than: 3 < 5 -> True
     node = BinOpNode(make_token(TokenType.LESS_THAN, "<"))
     node.left = IntNode(make_token(TokenType.INTEGER, "3"))
     node.right = IntNode(make_token(TokenType.INTEGER, "5"))
     assert evaluate(node) is True
 
-    # 11. Greater than: 5 > 3 -> True
+    # 2. Greater than: 5 > 3 -> True
     node = BinOpNode(make_token(TokenType.GREATER_THAN, ">"))
     node.left = IntNode(make_token(TokenType.INTEGER, "5"))
     node.right = IntNode(make_token(TokenType.INTEGER, "3"))
     assert evaluate(node) is True
 
-    # 12. Less than or equal to: 3 <= 3 -> True
+    # 3. Less than or equal to: 3 <= 3 -> True
     node = BinOpNode(make_token(TokenType.LESS_THAN_EQUAL, "<="))
     node.left = IntNode(make_token(TokenType.INTEGER, "3"))
     node.right = IntNode(make_token(TokenType.INTEGER, "3"))
     assert evaluate(node) is True
 
-    # 13. Greater than or equal to: 3 >= 5 -> False
+    # 4. Greater than or equal to: 3 >= 5 -> False
     node = BinOpNode(make_token(TokenType.GREATER_THAN_EQUAL, ">="))
     node.left = IntNode(make_token(TokenType.INTEGER, "3"))
     node.right = IntNode(make_token(TokenType.INTEGER, "5"))
