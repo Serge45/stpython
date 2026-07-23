@@ -10,6 +10,7 @@ class TokenError(Exception):
 class TokenType(Enum):
     ASSIGN = auto()
     EQUAL = auto()
+    NOT_EQUAL = auto()
     NAME = auto()
     INTEGER = auto()
     FLOAT = auto()

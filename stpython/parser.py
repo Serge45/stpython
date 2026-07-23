@@ -170,7 +170,22 @@ class Parser:
             node.left = VarNode(name)
             node.right = self.expr()
             return node
-        return self.expr()
+        return self.comp()
+
+    def comp(self) -> ASTNode:
+        """
+        expr [==, !=, <, >, <=, >=] expr
+        """
+        left = self.expr()
+        while self.cur_token.ttype in (TokenType.EQUAL, TokenType.NOT_EQUAL, TokenType.LESS_THAN, TokenType.GREATER_THAN, TokenType.LESS_THAN_EQUAL, TokenType.GREATER_THAN_EQUAL,):
+            op = self.cur_token
+            self.advance()
+            right = self.expr()
+            node = BinOpNode(op)
+            node.left = left
+            node.right = right
+            left = node
+        return left
 
     def expr(self) -> ASTNode:
         """
@@ -295,6 +310,18 @@ def evaluate(node: ASTNode, env: Environment = None) -> int | float | str:
             return left_val // right_val
         elif node.op == TokenType.FLOAT_DIVIDE:
             return left_val / right_val
+        elif node.op == TokenType.GREATER_THAN:
+            return left_val > right_val
+        elif node.op == TokenType.LESS_THAN:
+            return left_val < right_val
+        elif node.op == TokenType.GREATER_THAN_EQUAL:
+            return left_val >= right_val
+        elif node.op == TokenType.LESS_THAN_EQUAL:
+            return left_val <= right_val
+        elif node.op == TokenType.EQUAL:
+            return left_val == right_val
+        elif node.op == TokenType.NOT_EQUAL:
+            return left_val != right_val
     elif isinstance(node, UnaryOpNode):
         if node.op == TokenType.PLUS:
             return evaluate(node.expr, env)

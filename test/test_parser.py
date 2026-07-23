@@ -12,7 +12,7 @@ def parse_list(tokens_list: list[Token]) -> ASTNode:
     if not tokens_list or tokens_list[-1].ttype != TokenType.EOF:
         tokens_list = tokens_list + [make_token(TokenType.EOF, None)]
     parser = Parser(tokens_list)
-    return parser.expr()
+    return parser.stmt()
 
 def test_ast_repr():
     """Verify the string representation of AST nodes."""
